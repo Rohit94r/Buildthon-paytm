@@ -15,6 +15,7 @@ sponsor integrations, a seeded demo workspace and a dedicated dashboard as hacka
 | **Fastest demo (no keys, no backend)** | `cd apps/web && pnpm install && NEXT_PUBLIC_DEMO_MODE=true pnpm dev` → http://localhost:3000/livedesk |
 | **Full demo (live sponsor APIs)** | Add keys to `apps/api/.env`, run the API, then open `/livedesk` · [local dev](docs/setup/local-dev.md) |
 | **Hackathon story + demo script** | [HACKATHON.md](HACKATHON.md) |
+| **Hinglish explainer** | [paytm.md](paytm.md) |
 | **Product docs** | [Platform overview](docs/product/PLATFORM.md) · [Agent catalogue](docs/product/agents.md) · [API](docs/platform/API.md) |
 
 ## What LiveDesk does
@@ -66,7 +67,7 @@ Open **http://localhost:3000/livedesk**, pick preset engines and press **Run res
 
 ```bash
 cp .env.example apps/api/.env
-# Fill SERPAPI_API_KEY and YOUCOM_API_KEY in apps/api/.env
+# Fill SERPAPI_API_KEY (or SERPAPI_KEY) and YOUCOM_API_KEY (or YDC_API_KEY) in apps/api/.env
 cd apps/api
 python -m pip install -e ".[dev]"
 python -m app.cli migrate
@@ -83,7 +84,8 @@ pnpm dev
 ```
 
 Open http://localhost:3000/livedesk. The status pill at the top says **Sponsor keys connected** when both keys are
-present. `YDC_API_KEY` is accepted as an alias for `YOUCOM_API_KEY`.
+present. `SERPAPI_KEY` is accepted as an alias for `SERPAPI_API_KEY`, and `YDC_API_KEY` as an alias for
+`YOUCOM_API_KEY`.
 
 > Extra SerpApi credits for this buildathon:
 > [Mumbai](https://serpapi.com/beyond9to5mumbai500) · [Bengaluru](https://serpapi.com/beyond9to5blr)

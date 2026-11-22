@@ -32,7 +32,7 @@ LayerFlow already had the workflow layer. LiveDesk adds the missing live-evidenc
 git clone https://github.com/Rohit94r/Buildthon-paytm.git
 cd Buildthon-paytm
 cp .env.example apps/api/.env
-# add SERPAPI_API_KEY and YOUCOM_API_KEY
+# add SERPAPI_API_KEY (or SERPAPI_KEY) and YOUCOM_API_KEY (or YDC_API_KEY)
 cd apps/api && python -m pip install -e ".[dev]" && python -m app.cli migrate && python -m app.cli seed-demo-platform
 python -m uvicorn app.main:app --reload --port 8000
 ```
@@ -86,7 +86,7 @@ cd apps/web && pnpm install && pnpm dev
 - `POST https://api.you.com/v1/search` with `X-API-Key` and `{ query, count }` → `results.web[]` normalized to hits.
 - `POST https://api.you.com/v1/answer` → `answer`, `citations[]` and `results.web[]` mapped to `CitedAnswer`.
 - The client also tries `https://ydc-index.io` because You.com keys can be scoped to either host.
-- `YDC_API_KEY` is accepted as an alias for `YOUCOM_API_KEY`.
+- `SERPAPI_KEY` is accepted as an alias for `SERPAPI_API_KEY`; `YDC_API_KEY` as an alias for `YOUCOM_API_KEY`.
 - The `you_research` agent has two modes: `answer` (cited narrative) and `search` (cited brief built from search hits).
 
 ### One endpoint, both sponsors
