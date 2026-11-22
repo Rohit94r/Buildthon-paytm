@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     openai_compat_base_url: str = ""
     openai_compat_api_key: str = ""
 
+    # Sponsor APIs (SerpApi + You.com) — live search for the LiveDesk agents and cited assistant.
+    # Empty keys are safe: app/services/sponsor.py degrades to clearly-labelled sample data.
+    serpapi_api_key: str = ""
+    serpapi_base_url: str = "https://serpapi.com"
+    youcom_api_key: str = ""
+    ydc_api_key: str = ""  # You.com's own env name, accepted as an alias
+    youcom_base_url: str = "https://api.you.com"
+    sponsor_timeout_s: float = 12.0
+    sponsor_cache_s: int = 300
+
     # Discovery / fetching
     fetch_user_agent: str = "LayerFlowBot/1.0 (+https://theexecutivenarrative.com; contact@theexecutivenarrative.com)"
     fetch_max_per_domain: int = 1
