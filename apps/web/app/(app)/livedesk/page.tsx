@@ -44,6 +44,46 @@ const PRESETS = [
   "SerpApi vs You.com for live research agents",
 ];
 
+/**
+ * Older/partial API responses (or a demo handler that was skipped) can leave out
+ * `answer`. Normalise once at the boundary so the page never dereferences undefined.
+ */
+function normalizeResearch(raw: Partial<LiveDeskResponse>): LiveDeskResponse {
+  const sources = Array.isArray(raw.sources) ? raw.sources : [];
+  const collections = (Array.isArray(raw.collections) ? raw.collections : []).map((c) => ({
+    ...c,
+    label: c.label ?? "",
+    degraded: Boolean(c.degraded),
+    hits: Array.isArray(c.hits) ? c.hits : [],
+  }));
+  const a = raw.answer;
+  const answer: LiveDeskResponse["answer"] = a
+    ? {
+        ...a,
+        answer: typeof a.answer === "string" ? a.answer : "",
+        citations: Array.isArray(a.citations) ? a.citations : sources,
+        results: Array.isArray(a.results) ? a.results : [],
+        degraded: Boolean(a.degraded),
+      }
+    : {
+        answer: raw.evidence || "The research service returned structured results but no You.com answer.",
+        citations: sources,
+        results: [],
+        provider: raw.keys?.youcom ? "you.com" : "demo",
+        degraded: true,
+      };
+  return {
+    query: raw.query ?? "",
+    answer,
+    collections,
+    evidence: raw.evidence ?? "",
+    sources,
+    keys: raw.keys ?? { serpapi: false, youcom: false },
+    degraded: raw.degraded ?? true,
+    latency_ms: raw.latency_ms ?? 0,
+  };
+}
+
 export default function LiveDeskPage() {
   const statusQ = useQuery({ queryKey: ["livedesk", "status"], queryFn: () => get<LiveDeskStatus>("/livedesk/status") });
   const status = statusQ.data;
@@ -57,7 +97,7 @@ export default function LiveDeskPage() {
   const run = useAction((req: LiveDeskRequest) => post<LiveDeskResponse>("/livedesk/research", req), {
     silent: true,
     onSuccess: (r) => {
-      setResult(r);
+      setResult(normalizeResearch(r ?? {}));
       setError("");
     },
     onError: (e) => {
@@ -82,7 +122,13 @@ export default function LiveDeskPage() {
   const toggleEngine = (key: LiveDeskEngine) =>
     setEngines((current) => (current.includes(key) ? current.filter((e) => e !== key) : [...current, key]));
 
-  const totalHits = useMemo(() => (result?.collections ?? []).reduce((n, c) => n + c.hits.length, 0), [result]);
+  const answer = result?.answer;
+  const sources = result?.sources ?? [];
+  const collections = result?.collections ?? [];
+  const totalHits = useMemo(
+    () => (result?.collections ?? []).reduce((n, c) => n + (Array.isArray(c.hits) ? c.hits.length : 0), 0),
+    [result],
+  );
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-5">
@@ -220,18 +266,18 @@ export default function LiveDeskPage() {
                   <BookOpenCheck className="size-3" aria-hidden />
                   You.com cited answer
                 </span>
-                {result.answer.degraded ? <Badge tone="warn">sample answer</Badge> : <Badge tone="good">live answer</Badge>}
-                <span className="text-[11.5px] text-muted">{ms(result.latency_ms)} · {result.answer.citations.length} citations</span>
+                {answer?.degraded ? <Badge tone="warn">sample answer</Badge> : <Badge tone="good">live answer</Badge>}
+                <span className="text-[11.5px] text-muted">{ms(result?.latency_ms ?? 0)} · {answer?.citations?.length ?? 0} citations</span>
               </div>
-              <span className="font-mono text-[11px] text-muted">{result.query}</span>
+              <span className="font-mono text-[11px] text-muted">{result?.query ?? query}</span>
             </div>
             <div className="px-4 py-4 sm:px-5">
-              <Markdown text={result.answer.answer} />
-              {result.sources.length ? (
+              <Markdown text={answer?.answer ?? ""} />
+              {sources.length ? (
                 <div className="mt-4 border-t border-line pt-3">
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Sources</p>
                   <ol className="grid gap-1.5 sm:grid-cols-2">
-                    {result.sources.map((s, i) => (
+                    {sources.map((s, i) => (
                       <li key={`${s.source}-${i}`} className="flex min-w-0 items-start gap-2 text-[12px] leading-5">
                         <span className="mt-0.5 inline-flex size-[18px] shrink-0 items-center justify-center rounded bg-surface-2 font-mono text-[10px] text-muted">[{s.number ?? i + 1}]</span>
                         <a href={s.source} target="_blank" rel="noopener noreferrer" className="inline-flex min-w-0 items-center gap-1 text-ink-2 hover:text-accent hover:underline">
@@ -250,11 +296,11 @@ export default function LiveDeskPage() {
             <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-[14px] font-semibold tracking-tight text-ink">SerpApi structured collection</h2>
               <span className="text-[11.5px] text-muted">
-                {result.collections.length} engine{result.collections.length === 1 ? "" : "s"} · {totalHits} results
+                {collections.length} engine{collections.length === 1 ? "" : "s"} · {totalHits} results
               </span>
             </div>
             <div className="grid gap-3 lg:grid-cols-2">
-              {result.collections.map((c) => (
+              {collections.map((c) => (
                 <CollectionCard key={c.engine} collection={c} />
               ))}
             </div>

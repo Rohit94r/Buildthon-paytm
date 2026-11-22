@@ -2659,7 +2659,7 @@ function handleLiveDesk(req: DemoRequest): unknown {
   const out: LiveDeskResponse = {
     query,
     answer: {
-      answer: `Sample answer for "${query}". [1][2] Add YOUCOM_API_KEY to get a real cited answer.`,
+      answer: `Sample answer for "${query}". [1][2] Add \`YOUCOM_API_KEY\` to get a real cited answer.`,
       citations, results: hits, provider: "demo", degraded: true,
     },
     collections,
@@ -2848,7 +2848,7 @@ function workspaceDashboard(ws: WsBase, st: Store): WorkspaceDashboard {
 /* Entry point                                                                            */
 /* ====================================================================================== */
 
-const ROOTS = new Set(["platform", "workspaces", "blueprints", "dashboard", "agent-types", "agents", "pipelines", "runs", "content", "datasets", "assistant", "connection-kinds", "connections", "api-keys"]);
+const ROOTS = new Set(["platform", "workspaces", "blueprints", "dashboard", "agent-types", "agents", "pipelines", "runs", "content", "datasets", "assistant", "connection-kinds", "connections", "api-keys", "livedesk"]);
 
 export const handlePlatform: DemoHandler = (req) => {
   const [root, a, b] = req.segments;
