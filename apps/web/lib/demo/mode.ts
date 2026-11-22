@@ -3,13 +3,22 @@
 
 export const DEMO_KEY = "lf-demo";
 export const WORKSPACE_KEY = "lf-workspace";
+/** Set once the real /livedesk/status endpoint proves the backend is live. */
+export const LIVE_OVERRIDE_KEY = "lf-live";
 
 /** True when the build itself is a demo build (cannot be exited from the UI). */
 export const DEMO_FORCED = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 export function isDemoMode(): boolean {
+  if (typeof window === "undefined") return DEMO_FORCED;
+  try {
+    // A live API wins over every demo flag, including a build-time NEXT_PUBLIC_DEMO_MODE=true.
+    // This makes the fix permanent for the user's real browser profile, not just ours.
+    if (window.localStorage.getItem(LIVE_OVERRIDE_KEY) === "1") return false;
+  } catch {
+    /* storage unavailable */
+  }
   if (DEMO_FORCED) return true;
-  if (typeof window === "undefined") return false;
   try {
     return window.localStorage.getItem(DEMO_KEY) === "1";
   } catch {
@@ -17,8 +26,20 @@ export function isDemoMode(): boolean {
   }
 }
 
+/** Called by the boot detector when the real sponsor keys are configured. */
+export function forceLiveMode() {
+  try {
+    window.localStorage.setItem(LIVE_OVERRIDE_KEY, "1");
+    window.localStorage.removeItem(DEMO_KEY);
+    window.localStorage.setItem(WORKSPACE_KEY, "livedesk");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export function enterDemo(path = "/") {
   try {
+    window.localStorage.removeItem(LIVE_OVERRIDE_KEY);
     window.localStorage.setItem(DEMO_KEY, "1");
     window.localStorage.removeItem(WORKSPACE_KEY);
   } catch {

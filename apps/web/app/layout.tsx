@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import type { ReactNode } from "react";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -24,7 +25,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -33,6 +33,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeScript}
+        </Script>
+        <Script id="live-mode-init" strategy="beforeInteractive">
+          {`(function(){try{if(localStorage.getItem('lf-live')==='1')return;fetch('/api/v1/livedesk/status',{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d&&(d.mode==='live'||(d.keys&&d.keys.serpapi&&d.keys.youcom))){localStorage.setItem('lf-live','1');localStorage.removeItem('lf-demo');localStorage.setItem('lf-workspace','livedesk');location.reload();}}).catch(function(){});}catch(e){}})();`}
+        </Script>
         <Providers>{children}</Providers>
       </body>
     </html>
