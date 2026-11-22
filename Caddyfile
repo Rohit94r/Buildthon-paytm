@@ -1,0 +1,36 @@
+# Automatic HTTPS for $DOMAIN (Let's Encrypt). With DOMAIN=localhost Caddy serves a local cert.
+# Point an A record for $DOMAIN at the VPS IP before the first start.
+{$DOMAIN:localhost} {
+	encode zstd gzip
+
+	# Dashboard API, public API (client websites + widget) and the local staging site go to FastAPI.
+	# flush_interval -1 so SSE progress streams immediately.
+	@api path /api/* /site/*
+	handle @api {
+		reverse_proxy api:8000 {
+			flush_interval -1
+		}
+	}
+
+	# The embeddable assistant is loaded by client websites: cache it, allow any origin.
+	@widget path /widget.js
+	header @widget {
+		Cache-Control "public, max-age=3600"
+		Access-Control-Allow-Origin "*"
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

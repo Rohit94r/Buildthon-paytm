@@ -1,0 +1,398 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* LayerFlow: calm neutral surfaces, one accent (the active workspace's brand colour). */
+:root {
+  --brand: #0f766e;
+  --bg: #f7f7f8;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --surface-3: #e8e9ed;
+  --ink: #0e1116;
+  --ink-2: #4b5160;
+  --muted: #868b98;
+  --line: #e6e7eb;
+  --line-strong: #d4d6dc;
+  --ok: #15803d;
+  --ok-soft: #e7f5ec;
+  --warn: #b45309;
+  --warn-soft: #fdf3e2;
+  --bad: #c2362b;
+  --bad-soft: #fcebe9;
+  --info: #1d5fbf;
+  --info-soft: #e8f0fc;
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 0.04);
+  --shadow-md: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 12px -2px rgb(16 24 40 / 0.06);
+  --shadow-lg: 0 12px 32px -8px rgb(16 24 40 / 0.18), 0 2px 6px rgb(16 24 40 / 0.06);
+  /* agent categories */
+  --cat-collect: #0284c7;
+  --cat-create: #7c5cd6;
+  --cat-quality: #c27c0e;
+  --cat-deliver: #059669;
+  --cat-data: #4f5bd5;
+  --cat-assist: #d14d72;
+  --cat-approval: #b45309;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0b0c0f;
+  --surface: #131418;
+  --surface-2: #1a1c21;
+  --surface-3: #24262d;
+  --ink: #ededf0;
+  --ink-2: #b4b8c2;
+  --muted: #7d828e;
+  --line: #24262c;
+  --line-strong: #33363e;
+  --ok: #4ade80;
+  --ok-soft: #12261a;
+  --warn: #f5b454;
+  --warn-soft: #2b2112;
+  --bad: #f87171;
+  --bad-soft: #2d1515;
+  --info: #7cb0ff;
+  --info-soft: #14213a;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px -2px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.6);
+  --cat-collect: #38bdf8;
+  --cat-create: #a78bfa;
+  --cat-quality: #fbbf24;
+  --cat-deliver: #34d399;
+  --cat-data: #818cf8;
+  --cat-assist: #f472b6;
+  --cat-approval: #f5b454;
+  color-scheme: dark;
+}
+
+/* Accent is derived from --brand wherever it is (re)declared: :root and the app shell. */
+:root,
+.lf-accent {
+  --accent: var(--brand);
+  --accent-2: color-mix(in oklab, var(--brand) 86%, black);
+  --accent-soft: color-mix(in oklab, var(--brand) 10%, var(--surface));
+  --accent-solid: var(--brand);
+  --accent-ink: #ffffff;
+}
+.dark,
+.dark .lf-accent {
+  /* text/icons need a lighter tint on dark surfaces; buttons keep a saturated fill with white text */
+  --accent: color-mix(in oklab, var(--brand) 62%, white);
+  --accent-2: color-mix(in oklab, var(--brand) 88%, white);
+  --accent-solid: color-mix(in oklab, var(--brand) 92%, white);
+  --accent-soft: color-mix(in oklab, var(--brand) 22%, var(--surface));
+  --accent-ink: #ffffff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-solid: var(--accent-solid);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-cat-collect: var(--cat-collect);
+  --color-cat-create: var(--cat-create);
+  --color-cat-quality: var(--cat-quality);
+  --color-cat-deliver: var(--cat-deliver);
+  --color-cat-data: var(--cat-data);
+  --color-cat-assist: var(--cat-assist);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Source Serif 4", "Source Serif Pro", Georgia, Cambria, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Headings: UI sans with tight tracking. The serif is reserved for article previews (.font-serif / .prose-article). */
+.font-display {
+  font-family: var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Calm scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+/* Article prose (editor previews, diffs) */
+.prose-article p {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.65;
+  margin: 0 0 0.85em;
+}
+.prose-article h3 {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 1.2em 0 0.4em;
+}
+
+.diff-add {
+  background: var(--ok-soft);
+  color: var(--ok);
+  text-decoration: none;
+}
+.diff-del {
+  background: var(--bad-soft);
+  color: var(--bad);
+  text-decoration: line-through;
+}
+
+@keyframes lf-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.skeleton {
+  background: var(--surface-2);
+  border-radius: 4px;
+  animation: lf-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes lf-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  80%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.live-dot {
+  position: relative;
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: inherit;
+  animation: lf-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes lf-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  animation: lf-in 0.24s ease-out both;
+}
+
+/* Rendered markdown (content previews, assistant answers) */
+.md {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+.md > * + * {
+  margin-top: 0.7em;
+}
+.md h1,
+.md h2,
+.md h3 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  margin-top: 1.2em;
+}
+.md h1 {
+  font-size: 22px;
+}
+.md h2 {
+  font-size: 18px;
+}
+.md h3 {
+  font-size: 15px;
+}
+.md ul,
+.md ol {
+  padding-left: 1.3em;
+}
+.md ul {
+  list-style: disc;
+}
+.md ol {
+  list-style: decimal;
+}
+.md li + li {
+  margin-top: 0.25em;
+}
+.md a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.05em 0.3em;
+}
+.md blockquote {
+  border-left: 3px solid var(--line-strong);
+  padding-left: 0.9em;
+  color: var(--ink-2);
+}
+.md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.md th,
+.md td {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: left;
+}
+.md.serif p,
+.md.serif li {
+  font-family: var(--font-serif);
+  font-size: 16.5px;
+  line-height: 1.7;
+}
+.md.serif h1,
+.md.serif h2 {
+  font-family: var(--font-serif);
+}
+
+.bg-grid {
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+/* ---------------- Wave 3 motion (all disabled for prefers-reduced-motion) ---------------- */
+@keyframes lf-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.animate-pop { animation: lf-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+
+@keyframes lf-burst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.4); opacity: 0; }
+}
+.burst-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  animation: lf-burst 0.9s ease-out forwards;
+}
+
+@keyframes lf-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-slide-in { animation: lf-slide-in 0.35s ease-out both; }
+
+/* Soft pulse for the active step card */
+@keyframes lf-soft-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 28%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--accent) 0%, transparent); }
+}
+.pulse-soft { animation: lf-soft-pulse 1.8s ease-in-out infinite; }
+
+/* Workflow connectors: vertical line with travelling dots while running */
+.flow-line { position: relative; width: 2px; border-radius: 2px; background: var(--line-strong); }
+.flow-line[data-state="done"] { background: var(--ok); }
+.flow-line[data-state="failed"] { background: var(--bad); }
+.flow-line[data-state="skipped"] { background: repeating-linear-gradient(to bottom, var(--line-strong) 0 4px, transparent 4px 8px); }
+.flow-line[data-state="running"] { background: color-mix(in oklab, var(--accent) 35%, var(--line)); overflow: visible; }
+@keyframes lf-flow {
+  0% { top: -3px; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { top: calc(100% - 3px); opacity: 0; }
+}
+.flow-line[data-state="running"]::before,
+.flow-line[data-state="running"]::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--accent);
+  animation: lf-flow 1.2s linear infinite;
+}
+.flow-line[data-state="running"]::after { animation-delay: 0.6s; }
+
+@keyframes lf-flame {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  50% { transform: scale(1.08) rotate(2deg); }
+}
+.flame { animation: lf-flame 1.6s ease-in-out infinite; transform-origin: 50% 90%; }
+
+.glow-ok { box-shadow: 0 0 0 1px color-mix(in oklab, var(--warn) 35%, transparent), 0 6px 20px -6px color-mix(in oklab, var(--warn) 45%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop, .animate-slide-in, .animate-in, .pulse-soft, .flame, .live-dot::after, .burst-dot { animation: none !important; }
+  .burst-dot { display: none; }
+  .flow-line[data-state="running"]::before, .flow-line[data-state="running"]::after { animation: none; top: 45%; }
+  .flow-line[data-state="running"]::after { display: none; }
+}
