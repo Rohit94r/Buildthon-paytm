@@ -23,6 +23,7 @@ async def run(ctx, cfg: dict[str, Any], items: list[FlowItem]) -> list[FlowItem]
         item.data["answer"] = res["answer"]
         item.data["compared"] = [r["key"] for r in res["records"]]
         item.data["winners"] = (res["table"] or {}).get("winners", {})
+        item.data["sources"] = res.get("sources", [])
         return item
 
     out = await ctx.for_each(items, answer, label="Assistant")

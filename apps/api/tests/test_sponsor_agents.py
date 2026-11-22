@@ -3,9 +3,33 @@ citation metadata and are visible in run logs."""
 
 from __future__ import annotations
 
+import httpx
+import pytest
+
+from app.core.config import reset_settings_cache
 from app.services import sponsor
 
 API = "/api/v1"
+
+
+@pytest.fixture(autouse=True)
+def _sponsor_clean():
+    sponsor.clear_cache()
+    sponsor.set_transport(None)
+    yield
+    sponsor.set_transport(None)
+    sponsor.clear_cache()
+
+
+@pytest.fixture
+def keys(monkeypatch):
+    monkeypatch.setenv("SERPAPI_API_KEY", "serpapi-test-key")
+    monkeypatch.setenv("YOUCOM_API_KEY", "youcom-test-key")
+    reset_settings_cache()
+    yield
+    monkeypatch.delenv("SERPAPI_API_KEY", raising=False)
+    monkeypatch.delenv("YOUCOM_API_KEY", raising=False)
+    reset_settings_cache()
 
 
 async def _agent(c, name: str, kind: str, config: dict) -> dict:
@@ -59,3 +83,75 @@ async def test_you_research_search_mode(authed, monkeypatch):
     res = (await authed.post(f"{API}/agents/{a['id']}/test", json={})).json()
     assert res["ok"], res
     assert res["items"][0]["data"]["citations"][0]["title"] == "Fresh web"
+
+
+async def test_livedesk_research_fans_out_to_both_sponsors(authed, keys):
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        if request.url.path == "/v1/answer":
+            return httpx.Response(200, json={
+                "answer": "Agents cut research time. [[1]]",
+                "citations": [{"source": "https://study.example/report", "title": "Agent study",
+                               "excerpts": ["Agents cut research time by 40%."]}],
+                "results": {"web": [{"url": "https://study.example/report", "title": "Agent study",
+                                     "description": "A fresh study of agent workflows."}]},
+            })
+        if request.url.params.get("engine") == "google_news":
+            return httpx.Response(200, json={"news_results": [
+                {"position": 1, "title": "Agent news", "link": "https://news.example/a", "snippet": "This week.", "date": "1 day ago"}
+            ]})
+        return httpx.Response(200, json={"organic_results": [
+            {"position": 1, "title": "Agent guide", "link": "https://web.example/a", "snippet": "A practical guide."}
+        ]})
+
+    sponsor.set_transport(httpx.MockTransport(handler))
+    status = (await authed.get(f"{API}/livedesk/status")).json()
+    assert status == {
+        "keys": {"serpapi": True, "youcom": True}, "mode": "live",
+        "engines": [{"key": k, "label": v} for k, v in
+                    (("google", "Web"), ("google_news", "News"), ("google_jobs", "Jobs"),
+                     ("google_shopping", "Shopping"), ("google_maps", "Maps"), ("google_scholar", "Scholar"))],
+    }
+
+    r = await authed.post(f"{API}/livedesk/research", json={
+        "query": "AI agent research", "engines": ["google", "google_news"], "count": 4, "location": "India",
+    })
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["answer"]["provider"] == "you.com" and "[[1]]" in out["answer"]["answer"]
+    assert out["sources"][0]["source"] == "https://study.example/report"
+    assert [c["label"] for c in out["collections"]] == ["Web", "News"]
+    assert out["collections"][0]["hits"][0]["provider"] == "serpapi"
+    assert out["collections"][1]["hits"][0]["engine"] == "google_news"
+    assert "Agent study" in out["evidence"]
+    assert out["degraded"] is False and out["keys"]["serpapi"] is True
+    assert "/v1/answer" in seen
+    assert sum(1 for p in seen if p == "/search.json") == 2
+
+
+async def test_assistant_can_return_live_citations(authed, monkeypatch):
+    async def fake_evidence(query, *, max_sources=5):
+        return ("[1] Fresh result — a live snippet (https://live.example/a)", [
+            {"number": 1, "title": "Fresh result", "source": "https://live.example/a",
+             "excerpt": "a live snippet", "provider": "you.com"},
+        ])
+
+    monkeypatch.setattr(sponsor, "cited_evidence", fake_evidence)
+    ds = (await authed.post(f"{API}/datasets", json={
+        "name": "Live Labs", "key_field": "name",
+        "fields": [{"key": "name", "label": "Name"}, {"key": "score", "label": "Score", "type": "number",
+                    "compare": True, "higher_is_better": True}],
+    })).json()
+    await authed.post(f"{API}/datasets/{ds['id']}/records", json={"data": {"name": "North Lab", "score": 91}})
+
+    plain = (await authed.post(f"{API}/assistant/chat", json={"dataset": ds["id"], "message": "Tell me about North Lab"})).json()
+    assert plain["sources"] == [] and plain["sources_degraded"] is False
+
+    live = (await authed.post(f"{API}/assistant/chat", json={
+        "dataset": ds["id"], "message": "Tell me about North Lab", "live_sources": True,
+    })).json()
+    assert live["sources"][0]["source"] == "https://live.example/a"
+    assert live["sources_degraded"] is False
+    assert "Fresh result" in live["answer"]

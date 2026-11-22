@@ -225,6 +225,8 @@ export const KIND_ICON: Record<string, string> = {
   page_watcher: "Eye",
   keyword_researcher: "KeyRound",
   comparer: "Scale",
+  serpapi_search: "ScanSearch",
+  you_research: "BookOpenCheck",
   approval: "UserCheck",
 };
 
@@ -253,6 +255,8 @@ export const KIND_CATEGORY: Record<string, AgentCategory | "approval"> = {
   page_watcher: "data",
   keyword_researcher: "quality",
   comparer: "data",
+  serpapi_search: "collect",
+  you_research: "collect",
   approval: "approval",
 };
 

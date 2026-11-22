@@ -15,6 +15,8 @@ export interface ChatInput {
 
 export type ChatResult = Omit<ChatResponse, "model" | "latency_ms">;
 
+const NO_SOURCES = { sources: [], sources_degraded: false } as const;
+
 /* ------------------------------------------------------------------ */
 /* Text helpers                                                        */
 /* ------------------------------------------------------------------ */
@@ -642,7 +644,7 @@ export function runChat(input: ChatInput): ChatResult {
       ds.fields.some((f) => f.type === "currency") ? `- **Budget limits:** “under 10 lakh”, “over ₹2,00,000”` : "",
     ].filter((l) => l !== "");
     const answer = [intro, "", ...bullets].join("\n");
-    return { answer, records: [], table: null, suggestions: suggestions(ds, records, [], message) };
+    return { answer, records: [], table: null, suggestions: suggestions(ds, records, [], message), ...NO_SOURCES };
   }
 
   /* ---- choose records ---- */
@@ -669,7 +671,7 @@ export function runChat(input: ChatInput): ChatResult {
         "",
         `The dataset has ${records.length} records. Try widening the filter, for example drop ${filters.length > 1 ? "one of the conditions" : "the condition"} or pick a longer date range.`,
       ].join("\n");
-      return { answer, records: [], table: null, suggestions: suggestions(ds, records, [], message) };
+      return { answer, records: [], table: null, suggestions: suggestions(ds, records, [], message), ...NO_SOURCES };
     }
   }
 
@@ -710,7 +712,7 @@ export function runChat(input: ChatInput): ChatResult {
       .replace(/\n{3,}/g, "\n\n");
     const table = buildTable(ds, [r], focus);
     table.winners = {};
-    return { answer, records: [r], table, suggestions: suggestions(ds, records, [r], message) };
+    return { answer, records: [r], table, suggestions: suggestions(ds, records, [r], message), ...NO_SOURCES };
   }
 
   /* ---- comparison (2–4+) ---- */
@@ -741,5 +743,5 @@ export function runChat(input: ChatInput): ChatResult {
     parts.push(`Here's how ${joinAnd(names)} compare${focusText}:`, "");
   }
   parts.push(...insights.map((s) => `- ${s}`), "", recommendation(ds, rows, table, focus), "", sourceNote(ds));
-  return { answer: parts.join("\n").replace(/\n{3,}/g, "\n\n"), records: rows, table, suggestions: suggestions(ds, records, rows, message) };
+  return { answer: parts.join("\n").replace(/\n{3,}/g, "\n\n"), records: rows, table, suggestions: suggestions(ds, records, rows, message), ...NO_SOURCES };
 }

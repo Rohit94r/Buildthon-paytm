@@ -222,6 +222,7 @@ async def answer_chat(db: AsyncSession, tenant: Tenant, body: ChatRequest) -> di
     return await chat(
         db, tenant, ds, message=body.message, history=[h.model_dump() for h in body.history or []],
         compare_keys=body.compare_keys, config=config, model=model, agent_name=name,
+        live_sources=body.live_sources or bool(config.get("live_sources")),
     )
 
 

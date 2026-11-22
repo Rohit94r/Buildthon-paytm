@@ -429,6 +429,15 @@ export interface ChatRequest {
   message: string;
   history?: ChatMessage[];
   compare_keys?: string[]; // force-compare these records
+  live_sources?: boolean; // ground the answer in fresh SerpApi / You.com web sources
+}
+
+export interface ChatSource {
+  number: number;
+  title: string;
+  source: string;
+  excerpt?: string;
+  provider?: string;
 }
 
 export interface ComparisonTable {
@@ -442,7 +451,53 @@ export interface ChatResponse {
   records: DatasetRecord[]; // records used as context
   table: ComparisonTable | null;
   suggestions: string[]; // follow-up questions
+  sources: ChatSource[]; // sponsor-backed citations (empty unless live_sources was requested)
+  sources_degraded: boolean; // true when the sponsor APIs were unavailable and sample data was used
   model: string;
+  latency_ms: number;
+}
+
+/* ------------------------------------------------------------------ */
+/* LiveDesk (SerpApi + You.com research)                                */
+/* ------------------------------------------------------------------ */
+
+export type LiveDeskEngine = "google" | "google_news" | "google_jobs" | "google_shopping" | "google_maps" | "google_scholar";
+
+export interface LiveDeskSearchHit {
+  title: string;
+  url: string;
+  summary: string;
+  source: string;
+  published_at: string | null;
+  position: number;
+  provider: string;
+  engine: string;
+  query: string;
+  extra: Record<string, unknown>;
+}
+
+export interface LiveDeskCollection {
+  engine: LiveDeskEngine;
+  label: string;
+  provider: string;
+  degraded: boolean;
+  hits: LiveDeskSearchHit[];
+}
+
+export interface LiveDeskResponse {
+  query: string;
+  answer: {
+    answer: string;
+    citations: ChatSource[];
+    results: LiveDeskSearchHit[];
+    provider: string;
+    degraded: boolean;
+  };
+  collections: LiveDeskCollection[];
+  evidence: string;
+  sources: ChatSource[];
+  keys: { serpapi: boolean; youcom: boolean };
+  degraded: boolean;
   latency_ms: number;
 }
 

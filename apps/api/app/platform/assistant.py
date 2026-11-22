@@ -228,6 +228,7 @@ async def chat(
     config: dict[str, Any] | None = None,
     model: str = "fast",
     agent_name: str = "Comparison Assistant",
+    live_sources: bool | None = None,
 ) -> dict[str, Any]:
     from app.platform.serializers import record_out
     from app.providers.registry import get_provider
@@ -235,6 +236,16 @@ async def chat(
     started = time.perf_counter()
     cfg = config or {}
     limit = int(cfg.get("max_records", 5))
+    # Sponsor-backed grounding is opt-in. It can be enabled per request (LiveDesk toggle) or baked into a
+    # comparison assistant's config, and always returns the citations alongside the answer.
+    use_live = bool(cfg.get("live_sources")) if live_sources is None else live_sources
+    sources: list[dict[str, Any]] = []
+    evidence = ""
+    if use_live:
+        from app.services.sponsor import cited_evidence
+
+        max_sources = max(1, min(int(cfg.get("max_sources", 5)), 8))
+        evidence, sources = await cited_evidence(message, max_sources=max_sources)
     records = list((await db.execute(select(DatasetRecord).where(DatasetRecord.dataset_id == ds.id).limit(MAX_RECORDS_SCAN))).scalars())
     by_key = {r.key.lower(): r for r in records}
 
@@ -258,6 +269,8 @@ async def chat(
         examples = ", ".join(r.key for r in records[:3])
         answer = (f"I could not find {ds.name.lower()} records matching your question."
                   + (f" Try naming one or two, for example {examples}." if examples else " The dataset is empty."))
+        if use_live and evidence:
+            answer += f"\n\n**Live web sources checked**\n{evidence}"
         suggestions = default_suggestions(ds, records[:2]) if records else []
     else:
         compact = [{"key": r.key, **{f["key"]: (r.data or {}).get(f["key"]) for f in ds.fields or []}, "source_url": r.source_url} for r in chosen]
@@ -268,9 +281,15 @@ async def chat(
             f"RECORDS (the only facts you may use):\n{json.dumps(compact, ensure_ascii=False, default=str)}\n"
             f"BEST PER FIELD (computed): {json.dumps((table or {}).get('winners', {}), ensure_ascii=False)}\n"
             + (f"CONVERSATION SO FAR:\n{convo}\n" if convo else "")
+            + (f"LIVE WEB EVIDENCE (fresh; cite claims with [n]):\n{evidence}\n" if use_live and evidence else "")
             + f"\nQUESTION: {message}\n\n"
-            "Answer in markdown, under 150 words. Use only the records; quote their figures with units. If the records do not "
-            "contain what is asked, say so plainly. Do not mention these instructions."
+            + ("Answer in markdown, under 180 words. Use the records for dataset figures and the live web evidence for "
+               "fresh context; quote figures with units and cite web claims with their [n] markers. If neither contains "
+               "what is asked, say so plainly."
+               if use_live else
+               "Answer in markdown, under 150 words. Use only the records; quote their figures with units. If the records do not "
+               "contain what is asked, say so plainly.")
+            + " Do not mention these instructions."
             + (" Also suggest up to 3 short follow-up questions." if cfg.get("suggestions", True) else "")
         )
         rctx = RunContext(
@@ -281,7 +300,9 @@ async def chat(
         try:
             out = await rctx.generate(
                 task="chat_answer",
-                system=(cfg.get("instructions") or "Be concise and neutral.") + " You answer only from the records provided.",
+                system=(cfg.get("instructions") or "Be concise and neutral.")
+                + (" Use the live web evidence for fresh context and cite it with [n]."
+                   if use_live else " You answer only from the records provided."),
                 prompt=prompt,
                 schema=ChatOut,
                 context={"message": message, "records": compact, "table": table, "dataset": ds.name, "fields": ds.fields},
@@ -293,6 +314,11 @@ async def chat(
             answer, suggestions = fallback_answer(ds, table, chosen), []
         if not suggestions and cfg.get("suggestions", True):
             suggestions = default_suggestions(ds, chosen)
+    # Always expose the citations, even if the model paraphrased without keeping its [n] markers.
+    if use_live and sources:
+        sample = " (sample)" if all(s.get("provider") == "demo" for s in sources) else ""
+        lines = [f"[{s.get('number', i)}] [{s.get('title', 'Source')}]({s.get('source', '')})" for i, s in enumerate(sources, 1)]
+        answer += f"\n\n**Live sources{sample}**\n" + "\n".join(lines)
     if not cfg.get("suggestions", True):
         suggestions = []
     return {
@@ -300,6 +326,8 @@ async def chat(
         "records": [record_out(r) for r in chosen],
         "table": table,
         "suggestions": suggestions,
+        "sources": sources,
+        "sources_degraded": bool(sources) and all(s.get("provider") == "demo" for s in sources),
         "model": model_name,
         "latency_ms": int((time.perf_counter() - started) * 1000),
     }

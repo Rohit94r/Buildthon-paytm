@@ -255,6 +255,18 @@ class ChatRequest(Body):
     message: str = Field(min_length=1, max_length=2000)
     history: list[ChatMessage] | None = Field(default=None, max_length=20)
     compare_keys: list[str] | None = Field(default=None, max_length=10)
+    live_sources: bool = False  # ground the answer in fresh You.com / SerpApi web sources
+
+
+class LiveDeskResearch(Body):
+    """One LiveDesk research run: parallel SerpApi collections plus a cited You.com answer."""
+
+    query: str = Field(min_length=2, max_length=1000)
+    engines: list[Literal["google", "google_news", "google_jobs", "google_shopping", "google_maps", "google_scholar"]] = Field(
+        default_factory=lambda: ["google", "google_news"], max_length=6
+    )
+    location: str | None = Field(default=None, max_length=120)
+    count: int = Field(default=5, ge=1, le=10)
 
 
 class ConnectionWrite(Body):

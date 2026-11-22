@@ -22,6 +22,7 @@ from app.platform.routers import datasets as p_datasets
 from app.platform.routers import ops as p_ops
 from app.platform.routers import pipelines as p_pipelines
 from app.platform.routers import public as p_public
+from app.platform.routers import sponsor as p_sponsor
 from app.platform.routers import workspaces as p_workspaces
 from app.routers import articles, auth, dashboard, feed, jobs, publications, seo, settings, social
 
@@ -84,7 +85,7 @@ def create_app() -> FastAPI:
     prefix = "/api/v1"
     for r in (auth.router, dashboard.router, feed.router, articles.router, seo.router, publications.router, social.router, settings.router, jobs.router):
         app.include_router(r, prefix=prefix)
-    for r in (p_workspaces.router, p_agents.router, p_pipelines.router, p_content.router, p_datasets.router, p_connections.router, p_ops.router):
+    for r in (p_workspaces.router, p_agents.router, p_pipelines.router, p_content.router, p_datasets.router, p_sponsor.router, p_connections.router, p_ops.router):
         app.include_router(r, prefix=prefix)
     app.include_router(p_public.router)
 

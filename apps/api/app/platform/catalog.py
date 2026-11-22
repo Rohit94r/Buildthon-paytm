@@ -328,7 +328,8 @@ AGENT_KINDS: dict[str, AgentKindInfo] = {
             kind="comparison_assistant",
             name="Comparison Assistant",
             description="Real-time Q&A over a dataset: finds the records a visitor mentions, builds a side-by-side "
-            "comparison with winners highlighted and answers only from those records. No web fetching, so it is fast.",
+            "comparison with winners highlighted and answers from those records. Optionally grounds fresh claims in "
+            "live, cited SerpApi / You.com web sources.",
             category="assist",
             icon="MessagesSquare",
             uses_model=True,
@@ -341,6 +342,9 @@ AGENT_KINDS: dict[str, AgentKindInfo] = {
                   default="Be concise and neutral. Quote the figures from the records. If the records do not answer the question, say so.",
                   help="How the assistant should answer. It never uses facts outside the records."),
                 F("max_records", "Max records per answer", "number", default=5, min=1, max=10),
+                F("live_sources", "Ground in live web sources", "boolean", default=False,
+                  help="Adds fresh You.com / SerpApi results and numbered citations to every answer."),
+                F("max_sources", "Live sources per answer", "number", default=5, min=1, max=8),
                 F("suggestions", "Suggest follow-up questions", "boolean", default=True),
                 F("greeting", "Greeting", "text", default="Ask me to compare options side by side."),
             ],

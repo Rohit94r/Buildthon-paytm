@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUp, Check, Database, ListChecks, MessagesSquare, RotateCcw, Sparkles, X } from "lucide-react";
+import { ArrowUp, Check, Database, ExternalLink, Globe2, ListChecks, MessagesSquare, RotateCcw, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Button, cn, PageHeader, Select, Skeleton } from "@/components/ui";
@@ -178,6 +178,7 @@ function Chat({
   });
   const records = useMemo(() => recordsQ.data ?? [], [recordsQ.data]);
   const [input, setInput] = useState("");
+  const [liveSources, setLiveSources] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const name = source.type === "agent" ? source.agent.name : source.dataset.name;
@@ -197,7 +198,7 @@ function Chat({
       .slice(-8);
     setTurns((t) => [...t, { id: turnId(), role: "user", content: message, compare: keys.length ? keys : undefined }]);
     setInput("");
-    const req: ChatRequest = { message, history, ...(keys.length ? { compare_keys: keys } : {}) };
+    const req: ChatRequest = { message, history, live_sources: liveSources, ...(keys.length ? { compare_keys: keys } : {}) };
     if (source.type === "agent") req.assistant_id = source.agent.id;
     else req.dataset = source.dataset.id;
     chat.mutate(req);
@@ -260,7 +261,22 @@ function Chat({
 
       <div className="border-t border-line bg-surface px-3 py-3 sm:px-5">
         <div className="mx-auto max-w-[860px]">
-          <ComparePicker records={records} loading={recordsQ.isPending && !!dsId} value={compare} onChange={setCompare} />
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            <ComparePicker records={records} loading={recordsQ.isPending && !!dsId} value={compare} onChange={setCompare} />
+            <button
+              type="button"
+              onClick={() => setLiveSources((v) => !v)}
+              aria-pressed={liveSources}
+              title="Add fresh SerpApi and You.com web sources with numbered citations"
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium transition-colors",
+                liveSources ? "border-accent/40 bg-accent-soft text-accent" : "border-line text-ink-2 hover:border-line-strong hover:text-ink",
+              )}
+            >
+              <Globe2 className="size-3.5" aria-hidden />
+              Live sources {liveSources ? "on" : "off"}
+            </button>
+          </div>
           <div className="flex items-end gap-2 rounded-xl border border-line-strong bg-surface px-3 py-2 shadow-sm focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
             <textarea
               ref={inputRef}
@@ -331,6 +347,26 @@ function AssistantTurn({ turn, onAsk, onRetry, busy }: { turn: Turn; onAsk: (q: 
                 {rec.key}
               </span>
             ))}
+          </div>
+        ) : null}
+        {r?.sources.length ? (
+          <div className="rounded-lg border border-line bg-surface-2/60 p-2.5">
+            <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+              <Globe2 className="size-3" aria-hidden />
+              {r.sources_degraded ? "Sample live sources" : "Live sources"}
+            </p>
+            <ul className="space-y-1">
+              {r.sources.map((s, i) => (
+                <li key={`${s.source}-${i}`} className="text-[12px] leading-5 text-ink-2">
+                  <span className="mr-1 font-medium text-muted">[{s.number ?? i + 1}]</span>
+                  <a href={s.source} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-accent hover:underline">
+                    {s.title || s.source}
+                    <ExternalLink className="size-3 shrink-0" aria-hidden />
+                  </a>
+                  {s.provider ? <span className="ml-1.5 text-[10.5px] text-muted">via {s.provider}</span> : null}
+                </li>
+              ))}
+            </ul>
           </div>
         ) : null}
         {r?.suggestions.length ? (
@@ -407,7 +443,7 @@ function ComparePicker({ records, loading, value, onChange }: { records: Dataset
   const toggle = (k: string) => onChange(value.includes(k) ? value.filter((x) => x !== k) : [...value, k]);
 
   return (
-    <div ref={box} className="relative mb-2 flex flex-wrap items-center gap-1.5">
+    <div ref={box} className="relative flex flex-wrap items-center gap-1.5">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
