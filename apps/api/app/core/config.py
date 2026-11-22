@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     # Sponsor APIs (SerpApi + You.com) — live search for the LiveDesk agents and cited assistant.
     # Empty keys are safe: app/services/sponsor.py degrades to clearly-labelled sample data.
     serpapi_api_key: str = ""
+    serpapi_key_alias: str = Field(default="", validation_alias="SERPAPI_KEY")  # short SerpApi env name
     serpapi_base_url: str = "https://serpapi.com"
     youcom_api_key: str = ""
     ydc_api_key: str = ""  # You.com's own env name, accepted as an alias

@@ -34,10 +34,23 @@ def keys(monkeypatch):
     reset_settings_cache()
 
 
-def test_missing_key_returns_labelled_sample_data(monkeypatch):
+@pytest.fixture
+def short_serp_key(monkeypatch):
+    # Empty env values override any keys loaded from a developer's local .env.
+    monkeypatch.setenv("SERPAPI_API_KEY", "")
+    monkeypatch.setenv("SERPAPI_KEY", "serpapi-short-key")
+    reset_settings_cache()
+    yield
     monkeypatch.delenv("SERPAPI_API_KEY", raising=False)
-    monkeypatch.delenv("YOUCOM_API_KEY", raising=False)
-    monkeypatch.delenv("YDC_API_KEY", raising=False)
+    monkeypatch.delenv("SERPAPI_KEY", raising=False)
+    reset_settings_cache()
+
+
+def test_missing_key_returns_labelled_sample_data(monkeypatch):
+    monkeypatch.setenv("SERPAPI_API_KEY", "")
+    monkeypatch.setenv("SERPAPI_KEY", "")
+    monkeypatch.setenv("YOUCOM_API_KEY", "")
+    monkeypatch.setenv("YDC_API_KEY", "")
     reset_settings_cache()
     hits = __import__("asyncio").run(sponsor.serpapi_search("AI agents in Bengaluru", count=3))
     assert len(hits) == 3
@@ -66,6 +79,21 @@ async def test_serpapi_web_search_normalises_organic_results(keys):
     assert hits[0].provider == "serpapi"
     q = seen[0].url.params
     assert q["engine"] == "google" and q["q"] == "agent platform" and q["api_key"] == "serpapi-test-key"
+
+
+async def test_serpapi_short_key_alias_is_accepted(short_serp_key):
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"organic_results": [
+            {"position": 1, "title": "Alias result", "link": "https://alias.example/a", "snippet": "Works."}
+        ]})
+
+    sponsor.set_transport(httpx.MockTransport(handler))
+    hits = await sponsor.serpapi_search("alias key", count=2)
+    assert hits[0].title == "Alias result"
+    assert seen[0].url.params["api_key"] == "serpapi-short-key"
 
 
 async def test_serpapi_job_results(keys):

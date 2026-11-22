@@ -102,7 +102,8 @@ class CitedAnswer:
 
 # ---------------------------------------------------------------- keys / settings
 def serpapi_key() -> str:
-    return get_settings().serpapi_api_key.strip()
+    settings = get_settings()
+    return (settings.serpapi_api_key or settings.serpapi_key_alias).strip()
 
 
 def youcom_key() -> str:
