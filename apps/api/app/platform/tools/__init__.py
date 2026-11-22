@@ -93,6 +93,20 @@ TOOLS: dict[str, ToolInfo] = {
                  ["network:public"], _obj(query=S, language=S, region=S), _obj(suggestions=ARR), timeout_s=20),
         ToolInfo("model.generate", "Model call", "Schema-constrained generation with the workspace's model profile and fallback.", "ai",
                  ["model"], _obj(task=S, prompt=S), _obj(output=OBJ), timeout_s=900),
+        # Beyond 9TO5 sponsor tools (SerpApi + You.com tracks)
+        ToolInfo("serpapi.search", "SerpApi live search",
+                 "Real-time structured results from Google Web, News, Jobs, Shopping, Maps and Scholar via SerpApi.",
+                 "web", ["network:public"], _obj(query=S, engine=S, location=S, gl=S, hl=S, count=N),
+                 _obj(results=ARR), timeout_s=30, retries=1),
+        ToolInfo("serpapi.extract", "SerpApi Extract", "Main content of a page as Markdown via SerpApi's Extract API.",
+                 "web", ["network:public"], _obj(url=S), _obj(url=S, text=S, degraded=B), timeout_s=45, retries=1),
+        ToolInfo("you.search", "You.com live search",
+                 "Real-time web results with snippets and dates from the You.com Web Search API.",
+                 "web", ["network:public"], _obj(query=S, count=N, freshness=S), _obj(results=ARR), timeout_s=30, retries=1),
+        ToolInfo("you.answer", "You.com cited answer",
+                 "Synthesized answer with numbered inline citations from the You.com Answer API.",
+                 "ai", ["network:public"], _obj(query=S, country=S, language=S), _obj(answer=S, citations=ARR),
+                 timeout_s=60, retries=1),
     )
 }
 
@@ -121,6 +135,8 @@ KIND_TOOLS: dict[str, list[str]] = {
     "page_watcher": ["web.fetch", "html.extract"],
     "keyword_researcher": ["suggest.keywords", "web.fetch"],
     "comparer": ["dataset.read", "content.save"],
+    "serpapi_search": ["serpapi.search", "serpapi.extract"],
+    "you_research": ["you.answer", "you.search"],
 }
 
 Impl = Callable[..., Awaitable[Any]]

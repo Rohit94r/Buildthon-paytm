@@ -47,6 +47,7 @@ MINUTES_PER_ITEM = {
     "data_transform": 0.5, "auto_publisher": 5, "dataset_builder": 2, "comparison_assistant": 3, "custom_llm": 5, "researcher": 30,
     "fact_checker": 10, "site_auditor": 3, "image_finder": 4, "change_detector": 1, "http_action": 2, "notifier": 2, "report_builder": 30,
     "link_collector": 0.3, "document_reader": 10, "page_watcher": 3, "keyword_researcher": 0.5, "comparer": 6,
+    "serpapi_search": 4, "you_research": 25,
 }
 
 

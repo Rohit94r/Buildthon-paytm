@@ -334,3 +334,35 @@ async def suggest_keywords(rctx, query: str, language: str = "en", region: str =
         except (FetchError, ValueError, TypeError):
             continue
     return []
+
+
+# ---------------------------------------------------------------- sponsor APIs (Beyond 9TO5)
+@tool("serpapi.search")
+async def serpapi_search(rctx, query: str, engine: str = "google", location: str = "", gl: str = "in", hl: str = "en",
+                         count: int = 10) -> list[dict[str, Any]]:
+    from app.services.sponsor import serpapi_search as _search
+
+    hits = await _search(query, engine=engine, location=location, gl=gl, hl=hl, count=int(count))
+    return [h.out() for h in hits]
+
+
+@tool("serpapi.extract")
+async def serpapi_extract(rctx, url: str) -> dict[str, Any]:
+    from app.services.sponsor import serpapi_extract as _extract
+
+    return await _extract(url)
+
+
+@tool("you.search")
+async def you_search(rctx, query: str, count: int = 5, freshness: str = "") -> list[dict[str, Any]]:
+    from app.services.sponsor import you_search as _search
+
+    hits = await _search(query, count=int(count), freshness=str(freshness or ""))
+    return [h.out() for h in hits]
+
+
+@tool("you.answer")
+async def you_answer(rctx, query: str, country: str = "IN", language: str = "EN") -> dict[str, Any]:
+    from app.services.sponsor import you_answer as _answer
+
+    return (await _answer(query, country=country, language=language)).out()

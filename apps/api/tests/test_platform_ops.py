@@ -223,7 +223,7 @@ async def test_quotas_and_catalogue_entitlement(authed, new_client, monkeypatch)
     await make_tenant()
     b = await login(new_client(), B_EMAIL)
     catalog = (await b.get(f"{API}/catalog")).json()["items"]
-    assert len(catalog) == 48 and all(c["everyday_use"] for c in catalog) and {"seo_site_auditor", "broken_link_checker", "lead_qualifier", "crm_sync", "support_assistant", "event_finder"} <= {c["key"] for c in catalog}
+    assert len(catalog) == 50 and all(c["everyday_use"] for c in catalog) and {"seo_site_auditor", "broken_link_checker", "lead_qualifier", "crm_sync", "support_assistant", "event_finder", "serpapi_live_search", "you_cited_researcher"} <= {c["key"] for c in catalog}
     pro = next(c for c in catalog if c["key"] == "research_analyst")
     assert pro["entitled"] is False and pro["pricing"]["tier"] == "pro"
     r = await b.post(f"{API}/catalog/research_analyst/activate")
@@ -509,7 +509,8 @@ async def test_tools_registry_and_new_kinds_inline(authed):
     tools = {t["key"]: t for t in (await authed.get(f"{API}/tools")).json()["items"]}
     assert {"web.fetch", "web.search", "rss.read", "sitemap.read", "html.extract", "ai.extract", "seo.analyze", "dataset.read",
             "dataset.upsert", "content.save", "publish.connection", "http.request", "notify.send", "image.discover", "model.generate",
-            "links.collect", "doc.read", "image.search", "image.hash", "suggest.keywords"} == set(tools)
+            "links.collect", "doc.read", "image.search", "image.hash", "suggest.keywords", "serpapi.search",
+            "serpapi.extract", "you.search", "you.answer"} == set(tools)
     assert tools["http.request"]["side_effects"] is True and tools["web.fetch"]["side_effects"] is False
 
     checker = await agent(authed, "Checker", "fact_checker")

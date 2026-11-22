@@ -121,7 +121,8 @@ async def test_workspace_switching_and_forbidden(client):
 async def test_agent_types_crud_and_validation(authed):
     types = (await authed.get(f"{API}/agent-types")).json()["items"]
     kinds = {t["kind"] for t in types}
-    assert len(types) == 24 and {"web_scraper", "data_transform", "comparison_assistant", "researcher", "http_action"} <= kinds
+    assert len(types) == 26 and {"web_scraper", "data_transform", "comparison_assistant", "researcher", "http_action",
+                                 "serpapi_search", "you_research"} <= kinds
     assert all(f["label"] and f["type"] for t in types for f in t["config_schema"])
 
     r = await authed.post(f"{API}/agents", json={"name": "Bad", "kind": "multi_format", "config": {"formats": ["tiktok"], "zzz": 1}})

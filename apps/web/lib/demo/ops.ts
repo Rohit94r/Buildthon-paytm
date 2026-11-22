@@ -324,6 +324,10 @@ const TOOLS: ToolInfo[] = (
     ["image.discover", "Discover image", "Finds images on pages and in open-licence libraries, with credits.", "web", ["network:public"], false],
     ["image.hash", "Image hash", "Computes a perceptual hash so the same picture is never used twice.", "data", [], false],
     ["model.generate", "Model generate", "Generates text with the workspace model.", "ai", ["model:call"], false],
+    ["serpapi.search", "SerpApi live search", "Real-time Google Web / News / Jobs / Shopping / Maps / Scholar results.", "web", ["network:public"], false],
+    ["serpapi.extract", "SerpApi Extract", "Full page markdown from a URL via SerpApi.", "web", ["network:public"], false],
+    ["you.search", "You.com live search", "Real-time web results from You.com.", "web", ["network:public"], false],
+    ["you.answer", "You.com cited answer", "Synthesized answer with numbered citations from You.com.", "ai", ["network:public"], false],
   ] as const
 ).map(([key, name, description, category, permissions, side]) => ({
   key,
@@ -365,6 +369,8 @@ const TOOLS_BY_KIND: Record<AgentKind, string[]> = {
   page_watcher: ["web.fetch", "html.extract"],
   keyword_researcher: ["suggest.keywords", "web.fetch"],
   comparer: ["dataset.read", "content.save"],
+  serpapi_search: ["serpapi.search", "serpapi.extract"],
+  you_research: ["you.answer", "you.search"],
 };
 const PERMS: Record<Role, Permission[]> = {
   owner: ["workspace.manage", "members.manage", "agents.manage", "agents.run", "content.approve", "integrations.manage", "data.edit", "view"],
@@ -572,6 +578,8 @@ const KIND_LOGS: Partial<Record<AgentKind, (n: number) => string[]>> = {
   page_watcher: (n) => [`Checked ${Math.max(3, n)} pages`, `${Math.min(n, 2) === 1 ? "1 changed" : `${Math.min(n, 2)} changed`}: price ₹54,999 → ₹51,999`],
   keyword_researcher: (n) => ["Fetched search suggestions for 3 seed keywords", "Read 4 competitor pages for extra terms", `${Math.max(n, 142)} ideas in 4 intent groups`],
   comparer: (n) => [`Matched ${Math.max(6, Math.round(n / 3))} products across 3 shops`, "Best price at Croma for 4 of them · Amazon for 2"],
+  serpapi_search: (n) => [`SerpApi query sent (engine: google)`, `${n} structured result${n === 1 ? "" : "s"} de-duplicated by URL`, "Cached for 5 minutes to save credits"],
+  you_research: (n) => [`You.com Answer API returned a cited answer`, `${n} inline citations mapped to source URLs`, "Answer saved with sources for the assistant"],
 };
 
 const TOOL_FOR_LOG: [RegExp, string][] = [
@@ -882,6 +890,7 @@ const MINUTES_PER_ITEM: Partial<Record<string, number>> = {
   news_monitor: 0.5, web_scraper: 1, link_collector: 0.2, document_reader: 6, page_watcher: 3, researcher: 8, persona_rewriter: 6, multi_format: 8,
   seo_optimizer: 2, quality_gate: 1, fact_checker: 4, data_transform: 0.3, dataset_builder: 1, image_finder: 3, keyword_researcher: 0.5, comparer: 4,
   site_auditor: 2, change_detector: 0.5, auto_publisher: 2, notifier: 1, http_action: 1, report_builder: 20, custom_llm: 4, comparison_assistant: 1,
+  serpapi_search: 4, you_research: 25,
 };
 
 const dayFmt = new Map<string, Intl.DateTimeFormat>();

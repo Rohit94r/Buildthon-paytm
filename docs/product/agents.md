@@ -1,6 +1,6 @@
 # Agent guide
 
-Every agent in the LayerFlow catalogue (48 agents, catalogue v3.0.0), in plain language.
+Every agent in the LayerFlow catalogue (50 agents, catalogue v3.1.0), in plain language.
 Activate one from **Agents → Catalogue**, fill in the highlighted fields, press **Test**, then use it alone or chain it with others in a workflow.
 
 > Generated from `config/catalog/agents.json` by `scripts/sync_catalog.py`. Edit the JSON, not this file.
@@ -9,7 +9,7 @@ Activate one from **Agents → Catalogue**, fill in the highlighted fields, pres
 
 | Category | Agents |
 | --- | --- |
-| Collect data | [Smart Web Scraper](#smart-web-scraper) · [URL Collector](#url-collector) · [Site Crawler](#site-crawler) · [Table Extractor](#table-extractor) · [Structured Data Reader](#structured-data-reader) · [Product & Price Scraper](#product-price-scraper) · [Job Listings Collector](#job-listings-collector) · [Event & Hackathon Finder](#event-hackathon-finder) · [Review Collector](#review-collector) · [PDF & Document Reader](#pdf-document-reader) · [Page Change Watcher](#page-change-watcher) |
+| Collect data | [Smart Web Scraper](#smart-web-scraper) · [URL Collector](#url-collector) · [Site Crawler](#site-crawler) · [Table Extractor](#table-extractor) · [Structured Data Reader](#structured-data-reader) · [Product & Price Scraper](#product-price-scraper) · [Job Listings Collector](#job-listings-collector) · [Event & Hackathon Finder](#event-hackathon-finder) · [Review Collector](#review-collector) · [PDF & Document Reader](#pdf-document-reader) · [Page Change Watcher](#page-change-watcher) · [SerpApi Live Search](#serpapi-live-search) · [You.com Cited Researcher](#you-com-cited-researcher) |
 | Images | [Image Scraper](#image-scraper) · [Open-License Image Finder](#open-license-image-finder) · [Image Alt-Text Writer](#image-alt-text-writer) |
 | Research & news | [News Discovery](#news-discovery) · [Topic & Feed Monitor](#topic-feed-monitor) · [Research Analyst](#research-analyst) · [Data Finder](#data-finder) · [Fact Checker](#fact-checker) |
 | Sales & leads | [Business Contact Finder](#business-contact-finder) · [Email Drafter](#email-drafter) · [Lead Qualifier](#lead-qualifier) · [CRM Sync](#crm-sync) |
@@ -154,6 +154,34 @@ Checks the pages you choose on a schedule (or just one part, like a price or a n
 - **You fill in:** `sources`
 - **Try:** Page Change Watcher → Alerts & Digest Sender
 - Engine: `page_watcher`
+
+<a id="serpapi-live-search"></a>
+### SerpApi Live Search
+
+**Ask a question and get fresh, structured web results in seconds.** (Free)
+
+Searches Google Web, News, Jobs, Shopping, Maps or Scholar through SerpApi and returns clean, structured results: title, snippet, publisher, date and URL. Can run several queries at once and enrich the top hits with the SerpApi Extract API.
+
+- **Can do:** Web, News, Jobs, Shopping, Maps, Scholar, Multiple queries, de-duplicated by URL, SerpApi Extract API for full page markdown, Cached so demo re-runs do not waste credits
+- **You fill in:** `query`
+- **Works with:** SerpApi
+- **Try:** SerpApi Live Search → Cited Answer Writer → Dataset Saver
+- **Note:** Uses your SerpApi key; 500 bonus credits via the Beyond 9TO5 link.
+- Engine: `serpapi_search`
+
+<a id="you-com-cited-researcher"></a>
+### You.com Cited Researcher
+
+**Get a live answer with sources instead of an uncited guess.** (Free)
+
+Uses You.com's live web data to answer a question with numbered citations, or to build a cited brief from fresh web results. Every claim points back to a source, so you can check it in one click.
+
+- **Can do:** You.com Answer API with inline citations, You.com Web Search fallback, Freshness and country filters, Citations stored on the item for the assistant UI
+- **You fill in:** `question`
+- **Works with:** You.com
+- **Try:** You.com Cited Researcher → Dataset Saver → Comparison Assistant
+- **Note:** Uses your You.com API key.
+- Engine: `you_research`
 
 ## Images
 

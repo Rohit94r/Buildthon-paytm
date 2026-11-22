@@ -25,8 +25,10 @@ from app.platform.kinds import (
     report_builder,
     researcher,
     seo_optimizer,
+    serpapi_search,
     site_auditor,
     web_scraper,
+    you_research,
 )
 
 RUNNERS = {
@@ -54,4 +56,7 @@ RUNNERS = {
     "page_watcher": page_watcher.run,
     "keyword_researcher": keyword_researcher.run,
     "comparer": comparer.run,
+    # Beyond 9TO5 sponsor engines
+    "serpapi_search": serpapi_search.run,
+    "you_research": you_research.run,
 }

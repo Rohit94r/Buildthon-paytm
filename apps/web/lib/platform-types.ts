@@ -101,7 +101,10 @@ export type AgentKind =
   | "document_reader" // collect: read PDFs / documents from URLs -> text + extracted fields
   | "page_watcher" // collect: watch pages (or one element) and emit only what changed since last check
   | "keyword_researcher" // quality: keyword ideas from free autosuggest + competitor pages, grouped by intent
-  | "comparer"; // data: match the same thing across sources (fuzzy) -> comparison table + best value per field
+  | "comparer" // data: match the same thing across sources (fuzzy) -> comparison table + best value per field
+  // ---- Beyond 9TO5 sponsor engines ----
+  | "serpapi_search" // collect: real-time Google Web/News/Jobs/Shopping/Maps/Scholar results via SerpApi
+  | "you_research"; // collect: live cited answers/sources via You.com Answer + Web Search APIs
 
 export type AgentCategory = "collect" | "create" | "quality" | "deliver" | "data" | "assist";
 

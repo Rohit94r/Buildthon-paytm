@@ -63,7 +63,7 @@ def test_catalogue_file_presets_and_demo_copy():
     _load.cache_clear()
     raw = json.loads(catalog_path().read_text(encoding="utf-8"))
     keys = [a["key"] for a in raw["agents"]]
-    assert len(keys) == 48 and len(set(keys)) == 48
+    assert len(keys) == 50 and len(set(keys)) == 50
     entries = catalog()
     for e in entries.values():
         schema_keys = {f["key"] for f in AGENT_KINDS[e.kind].config_schema}

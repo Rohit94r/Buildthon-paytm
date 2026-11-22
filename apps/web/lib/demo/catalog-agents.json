@@ -1,6 +1,6 @@
 {
   "_about": "LayerFlow agent catalogue — the single source of truth. Read by the API (app/platform/catalog_agents.py) and copied into the dashboard demo (apps/web/lib/demo/catalog-agents.json) by scripts/sync_catalog.py; a test fails if they differ. 'preset' is the config applied when a customer activates the agent (validated against the engine's config schema in tests). 'everyday_use' is the one plain-language line non-technical users see first.",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "agents": [
     {
       "key": "smart_scraper",
@@ -2336,6 +2336,107 @@
       "preset": {
         "model": "writer",
         "config": {}
+      }
+    },
+    {
+      "key": "serpapi_live_search",
+      "name": "SerpApi Live Search",
+      "tagline": "Real-time results from Google, not stale scraping",
+      "description": "Searches Google Web, News, Jobs, Shopping, Maps or Scholar through SerpApi and returns clean, structured results: title, snippet, publisher, date and URL. Can run several queries at once and enrich the top hits with the SerpApi Extract API.",
+      "everyday_use": "Ask a question and get fresh, structured web results in seconds.",
+      "category": "collect",
+      "kind": "serpapi_search",
+      "icon": "ScanSearch",
+      "capabilities": [
+        "Web, News, Jobs, Shopping, Maps, Scholar",
+        "Multiple queries, de-duplicated by URL",
+        "SerpApi Extract API for full page markdown",
+        "Cached so demo re-runs do not waste credits"
+      ],
+      "tools": [
+        "serpapi.search",
+        "serpapi.extract"
+      ],
+      "integrations": [
+        "SerpApi"
+      ],
+      "required_config": [
+        "query"
+      ],
+      "example_workflows": [
+        "SerpApi Live Search → Cited Answer Writer → Dataset Saver"
+      ],
+      "pricing": {
+        "tier": "free",
+        "price_inr_month": 0,
+        "note": "Uses your SerpApi key; 500 bonus credits via the Beyond 9TO5 link."
+      },
+      "availability": "available",
+      "version": "3.1.0",
+      "docs": "docs/product/agents.md#serpapi-live-search",
+      "preset": {
+        "model": null,
+        "config": {
+          "engine": "google",
+          "query": "AI agent startups in Bengaluru",
+          "queries": [],
+          "location": "",
+          "gl": "in",
+          "hl": "en",
+          "count": 10,
+          "max_queries": 3,
+          "extract_top": 0,
+          "dedupe": true
+        }
+      }
+    },
+    {
+      "key": "you_cited_researcher",
+      "name": "You.com Cited Researcher",
+      "tagline": "Answers you can actually verify",
+      "description": "Uses You.com's live web data to answer a question with numbered citations, or to build a cited brief from fresh web results. Every claim points back to a source, so you can check it in one click.",
+      "everyday_use": "Get a live answer with sources instead of an uncited guess.",
+      "category": "collect",
+      "kind": "you_research",
+      "icon": "BookOpenCheck",
+      "capabilities": [
+        "You.com Answer API with inline citations",
+        "You.com Web Search fallback",
+        "Freshness and country filters",
+        "Citations stored on the item for the assistant UI"
+      ],
+      "tools": [
+        "you.answer",
+        "you.search"
+      ],
+      "integrations": [
+        "You.com"
+      ],
+      "required_config": [
+        "question"
+      ],
+      "example_workflows": [
+        "You.com Cited Researcher → Dataset Saver → Comparison Assistant"
+      ],
+      "pricing": {
+        "tier": "free",
+        "price_inr_month": 0,
+        "note": "Uses your You.com API key."
+      },
+      "availability": "available",
+      "version": "3.1.0",
+      "docs": "docs/product/agents.md#you-com-cited-researcher",
+      "preset": {
+        "model": null,
+        "config": {
+          "question": "What changed in AI agent pricing this month?",
+          "mode": "answer",
+          "max_questions": 5,
+          "count": 5,
+          "freshness": "",
+          "country": "IN",
+          "language": "EN"
+        }
       }
     }
   ]

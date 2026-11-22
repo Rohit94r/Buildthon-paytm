@@ -683,6 +683,12 @@ function createRun(st: Store, ws: WsBase, p: PipelineRec, trigger: LiveRun["trig
       case "comparer":
         out = prev > 0 ? Math.max(1, Math.round(prev / 3)) : 6;
         break;
+      case "serpapi_search":
+        out = Math.max(2, Math.min(Number(cfg.count ?? 8) || 8, 12));
+        break;
+      case "you_research":
+        out = prev > 0 ? Math.min(prev, 2) : 1;
+        break;
       default:
         out = prev;
     }
@@ -927,6 +933,18 @@ function stepLogs(
         L(0.9, `${outN} ideas in 4 intent groups (learn, compare, buy, local)`),
       ];
     }
+    case "serpapi_search":
+      return [
+        L(0.15, `SerpApi ${String(cfg.engine ?? "google")} query: ${String(cfg.query || "run input")}`),
+        L(0.6, `${outN} structured results · de-duplicated by URL`),
+        L(0.9, "Cached for 5 minutes (sponsor credits preserved)"),
+      ];
+    case "you_research":
+      return [
+        L(0.2, `You.com ${String(cfg.mode ?? "answer")} request: ${String(cfg.question || "run input")}`),
+        L(0.7, `${Math.max(1, outN)} answer(s) with numbered inline citations`),
+        L(0.92, "Citations saved on the item for the assistant UI"),
+      ];
     case "image_finder":
       return [
         L(0.2, `Looking for images for ${inN || outN} item${(inN || outN) === 1 ? "" : "s"} (Openverse and Wikimedia Commons first)`),
@@ -1982,6 +2000,31 @@ function testAgent(st: Store, ws: WsBase, a: AgentRec, body: AgentTestRequest): 
       logs.push(`Built ${items.length} comparison tables · best price at ${(items[0].data.best as Record<string, string>).price ?? "Croma"} for ${items[0].title}`);
       break;
     }
+    case "serpapi_search": {
+      const q = String(cfg.query || text || "live research");
+      const engine = String(cfg.engine ?? "google");
+      const publishers = ["Example News", "OpenAI Blog", "TechCrunch", "The Hindu", "Wikipedia"];
+      items = Array.from({ length: Math.max(1, outN) }, (_, i) => flow({
+        title: `${q} — result ${i + 1}`,
+        url: `https://example.org/results/${encodeURIComponent(q).slice(0, 30)}-${i + 1}`,
+        text: `Sample ${engine} result for “${q}”. Add SERPAPI_API_KEY to see real-time data.`,
+        summary: `Sample ${engine} result ${i + 1} for “${q}” (demo data).`,
+        source_name: publishers[i % publishers.length],
+        data: { engine, query: q, position: i + 1, provider: "demo" },
+      }));
+      logs.push(`${items.length} structured SerpApi results · sample data (no key in demo mode)`);
+      break;
+    }
+    case "you_research": {
+      const q = String(cfg.question || text || "What is changing in AI agents?");
+      const citations = ["https://example.org/one", "https://example.org/two", "https://example.org/three"].map((u, i) => ({
+        number: i + 1, source: u, title: `Source ${i + 1}`, excerpt: `Sample excerpt supporting the answer for “${q}”.`, provider: "demo",
+      }));
+      const answer = `Sample cited answer for “${q}”. [1][2] Add YOUCOM_API_KEY for live sources.`;
+      items = [flow({ title: q, text: answer, summary: answer, source_name: "You.com", data: { answer, citations, question: q, provider: "demo", degraded: true, mode: cfg.mode ?? "answer" } })];
+      logs.push(`${citations.length} inline citations mapped to sources · sample data (no key in demo mode)`);
+      break;
+    }
     case "custom_llm":
     default: {
       const outFields = Array.isArray(cfg.output_fields) ? (cfg.output_fields as { key: string; label?: string; type?: string }[]) : [];
@@ -1995,7 +2038,7 @@ function testAgent(st: Store, ws: WsBase, a: AgentRec, body: AgentTestRequest): 
     }
   }
 
-  const durations: Partial<Record<AgentKind, number>> = { web_scraper: 2400, news_monitor: 1100, persona_rewriter: 6200, multi_format: 9800, seo_optimizer: 1800, quality_gate: 2100, data_transform: 600, auto_publisher: 400, dataset_builder: 3100, comparison_assistant: 1200, custom_llm: 4200 };
+  const durations: Partial<Record<AgentKind, number>> = { web_scraper: 2400, news_monitor: 1100, persona_rewriter: 6200, multi_format: 9800, seo_optimizer: 1800, quality_gate: 2100, data_transform: 600, auto_publisher: 400, dataset_builder: 3100, comparison_assistant: 1200, custom_llm: 4200, serpapi_search: 1500, you_research: 2200 };
   const duration = Math.round((durations[a.kind] ?? 1500) * (0.8 + rng() * 0.4));
   const start = Date.now() - duration;
   const all: RunLog[] = [

@@ -467,6 +467,58 @@ export const AGENT_TYPES: AgentType[] = [
       { key: "match_threshold", label: "How close names must be (0.5–1)", type: "number", default: 0.85, min: 0.5, max: 1 },
     ],
   },
+  {
+    kind: "serpapi_search",
+    name: "SerpApi Live Search",
+    description: "Real-time structured results from Google Web, News, Jobs, Shopping, Maps or Scholar through SerpApi.",
+    category: "collect",
+    icon: "ScanSearch",
+    uses_model: false,
+    default_model: null,
+    inputs: "Queries (settings) or items whose titles are queries",
+    outputs: "One item per result with URL, snippet, publisher and date",
+    config_schema: [
+      { key: "engine", label: "SerpApi engine", type: "select", default: "google", options: [
+        { value: "google", label: "Google Web" }, { value: "google_news", label: "Google News" },
+        { value: "google_jobs", label: "Google Jobs" }, { value: "google_shopping", label: "Google Shopping" },
+        { value: "google_maps", label: "Google Maps" }, { value: "google_scholar", label: "Google Scholar" },
+      ] },
+      { key: "query", label: "Search query", type: "textarea", default: "", placeholder: "AI agent startups in Bengaluru" },
+      { key: "queries", label: "Extra queries", type: "string_list", default: [] },
+      { key: "location", label: "Location", type: "text", default: "" },
+      { key: "gl", label: "Country code", type: "text", default: "in" },
+      { key: "hl", label: "Language code", type: "text", default: "en" },
+      { key: "count", label: "Results per query", type: "number", default: 10, min: 1, max: 30 },
+      { key: "max_queries", label: "Max queries", type: "number", default: 5, min: 1, max: 10 },
+      { key: "extract_top", label: "Deepen top N with Extract API", type: "number", default: 0, min: 0, max: 10 },
+      { key: "dedupe", label: "Remove duplicate URLs", type: "boolean", default: true },
+    ],
+  },
+  {
+    kind: "you_research",
+    name: "You.com Cited Researcher",
+    description: "Live answers with numbered citations from You.com, or a cited brief built from You.com web results.",
+    category: "collect",
+    icon: "BookOpenCheck",
+    uses_model: false,
+    default_model: null,
+    inputs: "A question (setting) or items whose titles are questions",
+    outputs: "One cited answer per question",
+    config_schema: [
+      { key: "question", label: "Question", type: "textarea", default: "", placeholder: "What changed in AI agent pricing?" },
+      { key: "mode", label: "Mode", type: "select", default: "answer", options: [
+        { value: "answer", label: "Cited answer" }, { value: "search", label: "Cited brief from search" },
+      ] },
+      { key: "max_questions", label: "Max questions from items", type: "number", default: 5, min: 1, max: 10 },
+      { key: "count", label: "Sources in search mode", type: "number", default: 5, min: 1, max: 20 },
+      { key: "freshness", label: "Freshness", type: "select", default: "", options: [
+        { value: "", label: "Any time" }, { value: "day", label: "24 hours" }, { value: "week", label: "Week" },
+        { value: "month", label: "Month" }, { value: "year", label: "Year" },
+      ] },
+      { key: "country", label: "Country", type: "text", default: "IN" },
+      { key: "language", label: "Language", type: "text", default: "EN" },
+    ],
+  },
 ];
 
 export function agentType(kind: AgentKind): AgentType | undefined {
