@@ -94,25 +94,27 @@ TOOLS: dict[str, ToolInfo] = {
         ToolInfo("model.generate", "Model call", "Schema-constrained generation with the workspace's model profile and fallback.", "ai",
                  ["model"], _obj(task=S, prompt=S), _obj(output=OBJ), timeout_s=900),
         # Beyond 9TO5 sponsor tools (SerpApi + You.com tracks)
+        # The sponsor clients degrade to labelled sample data instead of raising, so retries are pointless;
+        # timeouts match SPONSOR_TIMEOUT_S (12s) with a little headroom.
         ToolInfo("serpapi.search", "SerpApi live search",
                  "Real-time structured results from Google Web, News, Jobs, Shopping, Maps and Scholar via SerpApi.",
                  "web", ["network:public"], _obj(query=S, engine=S, location=S, gl=S, hl=S, count=N),
-                 _obj(results=ARR), timeout_s=30, retries=1),
+                 _obj(results=ARR), timeout_s=15),
         ToolInfo("serpapi.extract", "SerpApi Extract", "Main content of a page as Markdown via SerpApi's Extract API.",
-                 "web", ["network:public"], _obj(url=S), _obj(url=S, text=S, degraded=B), timeout_s=45, retries=1),
+                 "web", ["network:public"], _obj(url=S), _obj(url=S, text=S, degraded=B), timeout_s=15),
         ToolInfo("you.search", "You.com live search",
                  "Real-time web results with snippets and dates from the You.com Web Search API.",
-                 "web", ["network:public"], _obj(query=S, count=N, freshness=S), _obj(results=ARR), timeout_s=30, retries=1),
+                 "web", ["network:public"], _obj(query=S, count=N, freshness=S), _obj(results=ARR), timeout_s=15),
         ToolInfo("you.answer", "You.com cited answer",
                  "Synthesized answer with numbered inline citations from the You.com Answer API.",
                  "ai", ["network:public"], _obj(query=S, country=S, language=S), _obj(answer=S, citations=ARR),
-                 timeout_s=60, retries=1),
+                 timeout_s=15),
     )
 }
 
 KIND_TOOLS: dict[str, list[str]] = {
     "web_scraper": ["web.fetch", "rss.read", "sitemap.read", "html.extract", "ai.extract", "links.collect"],
-    "news_monitor": ["web.fetch", "rss.read", "html.extract"],
+    "news_monitor": ["web.fetch", "rss.read", "html.extract", "serpapi.search"],
     "persona_rewriter": ["model.generate", "content.save"],
     "multi_format": ["model.generate", "content.save"],
     "seo_optimizer": ["content.save"],
@@ -122,9 +124,9 @@ KIND_TOOLS: dict[str, list[str]] = {
     "dataset_builder": ["web.fetch", "html.extract", "ai.extract", "dataset.upsert"],
     "comparison_assistant": ["dataset.read", "model.generate"],
     "custom_llm": ["model.generate"],
-    "researcher": ["web.search", "web.fetch", "html.extract", "model.generate"],
+    "researcher": ["web.search", "web.fetch", "html.extract", "model.generate", "serpapi.search", "you.search", "you.answer"],
     "fact_checker": ["model.generate"],
-    "site_auditor": ["web.fetch", "sitemap.read", "seo.analyze", "links.collect"],
+    "site_auditor": ["web.fetch", "sitemap.read", "seo.analyze", "links.collect", "serpapi.search", "you.answer"],
     "image_finder": ["web.fetch", "image.discover", "image.search", "image.hash", "model.generate"],
     "change_detector": ["dataset.read", "dataset.upsert"],
     "http_action": ["http.request"],
@@ -165,7 +167,9 @@ class ToolCall:
 
 
 def allowed_tools(rctx) -> set[str]:
-    return set(rctx.agent.tools or KIND_TOOLS.get(rctx.agent.kind, []))
+    # An explicit empty list means "no tools", not "use the defaults".
+    tools = rctx.agent.tools if rctx.agent.tools is not None else KIND_TOOLS.get(rctx.agent.kind, [])
+    return set(tools)
 
 
 def _retryable(exc: Exception) -> bool:

@@ -9,6 +9,7 @@ from urllib.parse import quote_plus
 
 from app.platform.flow import FlowItem
 from app.platform.kinds.common import parse_dt, read_article, recent
+from app.platform.kinds.live_evidence import live_hits
 from app.platform.tools import invoke
 from app.services.feeds import FeedParseError
 from app.services.fetcher import FetchError
@@ -41,6 +42,32 @@ async def run(ctx, cfg: dict[str, Any], items: list[FlowItem]) -> list[FlowItem]
     if cfg.get("use_google_news", True):
         feeds += [(google_news_url(k, region=cfg.get("region", "IN"), language=cfg.get("language", "en"), hours=hours), k) for k in keywords]
     feeds += [(f, None) for f in cfg.get("feeds") or []]
+
+    # Optional SerpApi Google News engine: structured, real-time headlines alongside the configured RSS feeds.
+    if cfg.get("live_sources"):
+        for keyword in keywords:
+            await ctx.check_cancel()
+            try:
+                hits = await live_hits(ctx, keyword, engine="google_news", count=int(cfg.get("live_count", 8)),
+                                       location=cfg.get("location", ""))
+            except Exception as exc:  # a sponsor outage must not kill the monitor
+                await ctx.log(f"SerpApi news search failed for '{keyword}': {exc}", "warn")
+                continue
+            for hit in hits:
+                blob = f"{hit.get('title') or ''} {hit.get('summary') or ''}"
+                if exclude and _mentions(blob, exclude):
+                    continue
+                published = hit.get("published_at") if parse_dt(hit.get("published_at")) else None
+                found.append((
+                    FlowItem(
+                        title=hit.get("title") or keyword, url=hit["url"],
+                        summary=hit.get("summary") or None, text=hit.get("summary") or "",
+                        source_name=hit.get("source") or "SerpApi", published_at=published,
+                        data={"keyword": keyword, "provider": hit.get("provider") or "serpapi"},
+                    ),
+                    keyword,
+                ))
+            await ctx.log(f"SerpApi News: {len(hits)} result(s) for '{keyword}'")
 
     for url, keyword in feeds:
         await ctx.check_cancel()

@@ -49,7 +49,11 @@ async def run_migrations_online() -> None:
         path = url.split("///", 1)[-1]
         if path and path != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
-    engine = create_async_engine(url)
+    settings = get_settings()
+    kwargs = {}
+    if settings.db_schema and not url.startswith("sqlite"):
+        kwargs["connect_args"] = {"server_settings": {"search_path": settings.db_schema}}
+    engine = create_async_engine(url, **kwargs)
     async with engine.connect() as connection:
         await connection.run_sync(_do_run)
     await engine.dispose()

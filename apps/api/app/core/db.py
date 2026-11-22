@@ -83,6 +83,9 @@ def init_engine(url: str | None = None) -> AsyncEngine:
         kwargs["connect_args"] = {"timeout": 15}
     else:
         kwargs.update(pool_size=10, max_overflow=10, pool_pre_ping=True)
+        if settings.db_schema:
+            # Keep this hackathon's tables in their own schema when the database is shared.
+            kwargs["connect_args"] = {"server_settings": {"search_path": settings.db_schema}}
     _engine = create_async_engine(url, **kwargs)
     if url.startswith("sqlite"):
         event.listen(_engine.sync_engine, "connect", _sqlite_pragmas)

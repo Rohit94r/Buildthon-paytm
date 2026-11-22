@@ -155,3 +155,110 @@ async def test_assistant_can_return_live_citations(authed, monkeypatch):
     assert live["sources"][0]["source"] == "https://live.example/a"
     assert live["sources_degraded"] is False
     assert "Fresh result" in live["answer"]
+
+
+async def test_explicit_live_sources_false_beats_saved_assistant_config(authed, monkeypatch):
+    calls = []
+
+    async def fake_evidence(query, *, max_sources=5):
+        calls.append(query)
+        return ("[1] Live — snippet (https://live.example/a)", [
+            {"number": 1, "title": "Live", "source": "https://live.example/a", "provider": "you.com"},
+        ])
+
+    monkeypatch.setattr(sponsor, "cited_evidence", fake_evidence)
+    ds = (await authed.post(f"{API}/datasets", json={
+        "name": "Toggle Lab", "key_field": "name",
+        "fields": [{"key": "name", "label": "Name"}],
+    })).json()
+    a = await _agent(authed, "Live Assistant", "comparison_assistant", {"dataset": ds["id"], "live_sources": True})
+
+    off = (await authed.post(f"{API}/assistant/chat", json={
+        "assistant_id": a["id"], "message": "Any news?", "live_sources": False,
+    })).json()
+    assert off["sources"] == [] and calls == []
+
+    default = (await authed.post(f"{API}/assistant/chat", json={
+        "assistant_id": a["id"], "message": "Any news?",
+    })).json()
+    assert len(calls) == 1 and default["sources"][0]["source"] == "https://live.example/a"
+
+
+async def test_failed_sponsor_response_is_not_cached(keys):
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(500)
+        return httpx.Response(200, json={"organic_results": [
+            {"position": 1, "title": "Recovered", "link": "https://live.example/recovered"},
+        ]})
+
+    sponsor.set_transport(httpx.MockTransport(handler))
+    first = await sponsor.serpapi_search("cache recovery", count=2)
+    assert all(h.provider == "demo" for h in first)
+    second = await sponsor.serpapi_search("cache recovery", count=2)
+    assert second[0].provider == "serpapi" and second[0].title == "Recovered"
+    assert len(calls) == 2
+
+
+async def test_malformed_you_payloads_do_not_crash(keys):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={
+            "answer": 42,
+            "citations": [{"source": "https://docs.example/a", "excerpts": "a plain string"}],
+            "results": [{"url": "https://docs.example/a", "title": "Docs"}],
+        })
+
+    sponsor.set_transport(httpx.MockTransport(handler))
+    out = await sponsor.you_answer("weird but valid shape")
+    assert out.provider == "you.com" and out.answer == "42"
+    assert out.citations[0]["excerpt"] == "a plain string"
+    assert out.results[0].title == "Docs"
+
+
+async def test_livedesk_reports_partial_sponsor_failure(authed, keys):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/answer":
+            return httpx.Response(200, json={"answer": "Cited answer [[1]]", "citations": [
+                {"source": "https://study.example/a", "title": "Study", "excerpts": ["Evidence."]},
+            ]})
+        return httpx.Response(500)
+
+    sponsor.set_transport(httpx.MockTransport(handler))
+    out = (await authed.post(f"{API}/livedesk/research", json={
+        "query": "partial outage", "engines": ["google"], "count": 3,
+    })).json()
+    assert out["answer"]["degraded"] is False
+    assert out["collections"][0]["degraded"] is True
+    assert out["degraded"] is True  # any failing sponsor is reported honestly
+
+
+async def test_ordinary_agent_uses_live_sponsor_evidence(authed, monkeypatch):
+    seen = []
+
+    async def fake_search(query, **kw):
+        seen.append(("serpapi", kw.get("engine")))
+        return [sponsor.SearchHit(title="Fresh live result", url="https://live.example/research",
+                                 summary="A fresh, detailed live snippet about agent research workflows in India with figures.",
+                                 source="Live Desk", provider="serpapi")]
+
+    async def fake_answer(query, **kw):
+        seen.append(("you", None))
+        return sponsor.CitedAnswer(answer="Live answer [[1]]", citations=[
+            {"number": 1, "source": "https://live.example/research", "title": "Live Desk", "excerpt": "Live snippet"},
+        ], provider="you.com")
+
+    monkeypatch.setattr(sponsor, "serpapi_search", fake_search)
+    monkeypatch.setattr(sponsor, "you_answer", fake_answer)
+    a = await _agent(authed, "Live Researcher", "researcher", {
+        "question": "live research", "search": "none", "max_sources": 2,
+        "live_sources": True, "live_answer": True,
+    })
+    res = (await authed.post(f"{API}/agents/{a['id']}/test", json={})).json()
+    assert res["ok"], res
+    assert any(k == "serpapi" for k, _ in seen) and any(k == "you" for k, _ in seen)
+    article = res["items"][0]["formats"]["article"]
+    assert "Live cited answer" in article and "https://live.example/research" in article
+    assert res["items"][0]["data"]["evidence"]["live_answer"]["citations"][0]["number"] == 1

@@ -46,6 +46,20 @@ LIVEDESK_QUESTIONS = [
      "priority": 4, "status": "queued", "notes": SAMPLE_NOTE},
     {"question": "Which agentic AI hackathons are open in India in 2026?", "topic": "Events",
      "priority": 3, "status": "queued", "notes": SAMPLE_NOTE},
+    {"question": "How are Indian startups pricing AI agents this quarter?", "topic": "Pricing",
+     "priority": 4, "status": "queued", "notes": SAMPLE_NOTE},
+    {"question": "Which new AI agent products launched in Bengaluru this month?", "topic": "Products",
+     "priority": 3, "status": "queued", "notes": SAMPLE_NOTE},
+    {"question": "What funding rounds closed for agentic AI companies this week?", "topic": "Funding",
+     "priority": 5, "status": "queued", "notes": SAMPLE_NOTE},
+    {"question": "How do live web citations change AI research workflows?", "topic": "Research",
+     "priority": 4, "status": "queued", "notes": SAMPLE_NOTE},
+    {"question": "Which Indian newsrooms use AI agents for newsroom workflows?", "topic": "Media",
+     "priority": 2, "status": "queued", "notes": SAMPLE_NOTE},
+    {"question": "What are the latest agent hiring trends in India?", "topic": "Jobs",
+     "priority": 3, "status": "queued", "notes": SAMPLE_NOTE},
+    {"question": "Where can students find free AI agent APIs for hackathons?", "topic": "Events",
+     "priority": 2, "status": "queued", "notes": SAMPLE_NOTE},
 ]
 
 MARKET_CONTENT = [

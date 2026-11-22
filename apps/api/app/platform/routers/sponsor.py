@@ -13,20 +13,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from app.core.deps import Principal, current_principal
+from app.core.deps import Principal, current_principal, require
 from app.platform.schemas import LiveDeskResearch
 from app.services import sponsor
 
 router = APIRouter(tags=["livedesk"])
 
-ENGINE_LABELS = {
-    "google": "Web",
-    "google_news": "News",
-    "google_jobs": "Jobs",
-    "google_shopping": "Shopping",
-    "google_maps": "Maps",
-    "google_scholar": "Scholar",
-}
+ENGINE_LABELS = sponsor.ENGINE_LABELS
 
 
 @router.get("/livedesk/status")
@@ -39,7 +32,7 @@ async def livedesk_status(principal: Principal = Depends(current_principal)) -> 
 
 
 @router.post("/livedesk/research")
-async def livedesk_research(body: LiveDeskResearch, principal: Principal = Depends(current_principal)) -> dict[str, Any]:
+async def livedesk_research(body: LiveDeskResearch, principal: Principal = Depends(require("agents.run"))) -> dict[str, Any]:
     started = time.perf_counter()
     query = body.query.strip()
     engines = list(dict.fromkeys(body.engines)) or ["google"]
@@ -78,6 +71,6 @@ async def livedesk_research(body: LiveDeskResearch, principal: Principal = Depen
         "evidence": "\n".join(evidence_lines),
         "sources": citations,
         "keys": {"serpapi": bool(sponsor.serpapi_key()), "youcom": bool(sponsor.youcom_key())},
-        "degraded": answer.degraded and all(c["degraded"] for c in collections),
+        "degraded": answer.degraded or any(c["degraded"] for c in collections),
         "latency_ms": int((time.perf_counter() - started) * 1000),
     }

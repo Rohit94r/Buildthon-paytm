@@ -6,9 +6,10 @@ LiveDesk turns one question into a verifiable research brief: **SerpApi** collec
 from Google Web, News, Jobs, Shopping, Maps and Scholar; **You.com** answers the same question with inline
 citations and live web results. Both calls run in parallel, and every result is normalized into one workspace UI.
 
-It is built on **LayerFlow**, a working multi-tenant agent platform (FastAPI + Next.js) with 26 agent kinds,
-pipelines, datasets, runs, assistant chat, public API and SDKs. This repo keeps that platform intact and adds the
-sponsor integrations, a seeded demo workspace and a dedicated dashboard as hackathon work.
+LiveDesk is a research desk **inside LayerFlow**, one working multi-tenant agent platform (FastAPI + Next.js) with
+26 agent kinds, 50 catalogue presets, pipelines, datasets, runs, assistant chat, public API and SDKs. Sponsor calls
+are platform tools and agents — not a separate app: ordinary agents (Research Analyst, News Monitor, SEO Auditor)
+also consume SerpApi and You.com data with one config toggle.
 
 | | |
 | --- | --- |
@@ -31,8 +32,9 @@ Question ──► /livedesk/research ─┤                                    
 ```
 
 - **Sponsor agents, not wrappers.** `serpapi_search` and `you_research` are first-class platform agent kinds with
-  catalog presets, config forms, tools, tests, and run-log output. A seeded **LiveDesk** workspace ships a four-agent
-  team and a manual pipeline.
+  catalogue presets, config forms, tools, tests and run-log output. Researcher, News Monitor and SEO Auditor can opt
+  into the same live evidence. The seeded **LiveDesk** workspace ships a seven-agent team, a five-step manual pipeline
+  and a 10-record research dataset.
 - **Cited by construction.** You.com citations are returned as structured sources; the assistant also renders an
   explicit numbered source list even if the model paraphrases away its `[n]` markers.
 - **Fast and credit-aware.** 12s timeouts, 5-minute in-process cache, one You.com answer call per research run, and
@@ -44,10 +46,10 @@ Question ──► /livedesk/research ─┤                                    
 
 | Criterion | What is in this repo |
 | --- | --- |
-| Working prototype / demo (30%) | `/livedesk` dashboard, seeded LiveDesk workspace, frontend demo mode, 142 passing backend tests, typecheck + production build |
-| Sponsor / track integration (25%) | Real SerpApi `search.json` + `/extract` clients; real You.com `/v1/search` + `/v1/answer` clients; four sponsor tools; two agent kinds; four catalogue presets |
+| Working prototype / demo (30%) | `/livedesk` dashboard, seeded LiveDesk workspace (7 agents, 10 sample records), frontend demo mode, 148 passing backend tests, typecheck + production build |
+| Sponsor / track integration (25%) | Real SerpApi `search.json` + `/extract` clients; real You.com `/v1/search` + `/v1/answer` clients; four sponsor tools; two sponsor agent kinds; two catalogue presets; three ordinary agents wired to live evidence |
 | Real-world problem / impact (20%) | Researchers and desks need fresh answers with sources, not stale model recall; LiveDesk removes tab-switching and makes every claim traceable |
-| Innovation / originality (15%) | One parallel research endpoint feeds a general-purpose agent platform; sponsor evidence also grounds the existing comparison assistant via a single toggle |
+| Innovation / originality (15%) | One parallel research endpoint feeds the whole platform; the same sponsor evidence grounds the assistant, the researcher, the news monitor and the SEO auditor via one config toggle |
 
 ## Try it
 
@@ -97,14 +99,15 @@ present. `SERPAPI_KEY` is accepted as an alias for `SERPAPI_API_KEY`, and `YDC_A
 | `GET` | `/api/v1/livedesk/status` | Key configuration + available SerpApi engines (never returns key material) |
 | `POST` | `/api/v1/livedesk/research` | Parallel research run: `{ query, engines, location, count }` → answer, citations and per-engine collections |
 | `POST` | `/api/v1/assistant/chat` | Dataset Q&A; set `"live_sources": true` to add cited web grounding |
-| `GET/POST` | `/api/v1/agents`, `/api/v1/pipelines`, `/api/v1/datasets` | Underlying platform APIs used by the seeded LiveDesk workspace |
+| `GET/POST` | `/api/v1/agents`, `/api/v1/pipelines`, `/api/v1/datasets` | Platform APIs used by the LiveDesk workspace (agents, pipelines, datasets) |
 
 ## Repository map
 
 ```
 apps/api/app/services/sponsor.py            SerpApi + You.com clients, normalization, cache, fallback
 apps/api/app/platform/routers/sponsor.py    /livedesk/status + /livedesk/research
-apps/api/app/platform/kinds/                serpapi_search.py, you_research.py
+apps/api/app/platform/kinds/                serpapi_search.py, you_research.py, live_evidence.py
+                                            (plus researcher / news_monitor / site_auditor live wiring)
 apps/api/app/platform/assistant.py          citation-aware chat (live_sources)
 apps/api/app/platform/blueprints.py         livedesk_research blueprint
 apps/api/app/platform/seed.py               LiveDesk demo workspace + sample question queue
@@ -113,12 +116,12 @@ apps/web/lib/demo/                          frontend-only sponsor demo handlers
 HACKATHON.md                                demo script, architecture and judging notes
 ```
 
-The original platform docs (setup, deployment, integrations, ops) remain in [`docs/`](docs/README.md).
+Full product docs (setup, deployment, integrations, ops) are in [`docs/`](docs/README.md); the stage-ready pitch is in [`paytm.md`](paytm.md).
 
 ## Verification
 
 ```bash
-cd apps/api && python3 -m pytest -q          # 142 passed
+cd apps/api && python3 -m pytest -q          # 148 passed
 cd apps/web && pnpm typecheck && pnpm build   # clean
 ```
 

@@ -10,6 +10,7 @@ from typing import Any
 from app.agents.research import synthesize
 from app.platform.flow import FlowItem
 from app.platform.kinds.common import fetch
+from app.platform.kinds.live_evidence import cited_answer, cited_answer_markdown, hit_candidate, live_hits
 from app.platform.tools import invoke
 from app.services.canonical import canonicalize, publisher_from_url
 from app.services.fetcher import FetchError
@@ -51,6 +52,17 @@ async def run(ctx, cfg: dict[str, Any], items: list[FlowItem]) -> list[FlowItem]
                                            engine=cfg.get("search", "google_news"), region=cfg.get("region", "IN"), limit=12)
             except FetchError as exc:
                 await ctx.log(f"Search failed: {exc}", "warn")
+        if cfg.get("live_sources"):
+            try:
+                live = await live_hits(
+                    ctx, q, provider=cfg.get("live_provider", "serpapi"),
+                    engine=cfg.get("live_engine", "google_news"), count=int(cfg.get("live_count", 5)),
+                    location=cfg.get("location", ""),
+                )
+                candidates += [hit_candidate(h) for h in live]
+                await ctx.log(f"'{q[:80]}': {len(live)} live sponsor result(s) added as candidates")
+            except Exception as exc:  # a sponsor outage must not kill the research run
+                await ctx.log(f"Live sponsor search failed: {exc}", "warn")
         candidates += [{"url": s["url"], "title": None, "publisher": None} for s in cfg.get("sources") or []]
         candidates += [{"url": it.url, "title": it.title, "publisher": it.source_name} for it in items if it.url and it.title == q]
 
@@ -65,6 +77,12 @@ async def run(ctx, cfg: dict[str, Any], items: list[FlowItem]) -> list[FlowItem]
             seen.add(key)
             res = await fetch(ctx, c["url"])
             if res is None:
+                # A live sponsor result may be unfetchable (robots/paywall); its snippet is still evidence,
+                # and it is kept visibly labelled with the provider it came from.
+                if c.get("snippet"):
+                    sources.append({"index": len(sources) + 1, "url": c["url"], "title": c.get("title"),
+                                    "publisher": c.get("publisher"), "published_at": None,
+                                    "excerpt": str(c["snippet"])[:6000], "injection_flags": injection_flags(str(c["snippet"]))})
                 continue
             ex = await invoke(ctx, "html.extract", summary=lambda e: {"words": e.word_count}, html=res.text, url=res.final_url or c["url"])
             if ex.paywalled or word_count(ex.text) < 60:
@@ -85,9 +103,21 @@ async def run(ctx, cfg: dict[str, Any], items: list[FlowItem]) -> list[FlowItem]
         ctx.model_calls += 1
         await ctx.event("model.called", "Evidence pack synthesis", data={"task": "synthesize", "duration_ms": int((time.perf_counter() - t0) * 1000)})
         report = brief_markdown(q, pack)
+        if cfg.get("live_answer"):
+            try:
+                answer = await cited_answer(ctx, q, country=cfg.get("country", "IN"), language=cfg.get("language", "EN"))
+                report += "\n\n---\n\n" + cited_answer_markdown(q, answer)
+                evidence_answer = answer
+            except Exception as exc:
+                evidence_answer = None
+                await ctx.log(f"You.com cited answer failed: {exc}", "warn")
+        else:
+            evidence_answer = None
         ctx.outputs["report"] = report if not ctx.outputs.get("report") else ctx.outputs["report"] + "\n\n---\n\n" + report
         evidence = {k: v for k, v in pack.items() if k not in ("sources", "model_run_id")}
         evidence["sources"] = [{k: v for k, v in s.items() if k not in ("excerpt", "injection_flags")} for s in sources]
+        if evidence_answer:
+            evidence["live_answer"] = {"answer": evidence_answer.get("answer"), "citations": evidence_answer.get("citations") or []}
         out.append(FlowItem(
             title=q, text="\n\n".join(s["excerpt"] for s in sources)[:20_000], summary=pack.get("summary"),
             url=sources[0]["url"], source_name=sources[0]["publisher"], formats={"article": report},

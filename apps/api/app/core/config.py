@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///./data/dev.db"
     db_echo: bool = False
+    db_schema: str = ""  # optional dedicated schema on a shared PostgreSQL database
 
     # Model
     model_provider: str = "ollama"  # ollama | openai_compat | mock

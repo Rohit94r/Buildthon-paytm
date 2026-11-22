@@ -255,7 +255,8 @@ class ChatRequest(Body):
     message: str = Field(min_length=1, max_length=2000)
     history: list[ChatMessage] | None = Field(default=None, max_length=20)
     compare_keys: list[str] | None = Field(default=None, max_length=10)
-    live_sources: bool = False  # ground the answer in fresh You.com / SerpApi web sources
+    # None = use the assistant's saved config; explicit False must really switch live sources off.
+    live_sources: bool | None = None
 
 
 class LiveDeskResearch(Body):

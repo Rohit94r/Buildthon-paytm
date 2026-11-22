@@ -41,18 +41,34 @@ def set_transport(transport: httpx.AsyncBaseTransport | None) -> None:
 _CACHE: dict[str, tuple[float, Any]] = {}
 
 
-def _cached(key: str, ttl: int, make):
-    now = time.monotonic()
+def _cache_get(key: str) -> Any | None:
     hit = _CACHE.get(key)
-    if hit is not None and hit[0] > now:
+    if hit is not None and hit[0] > time.monotonic():
         return hit[1]
-    value = make()
-    _CACHE[key] = (now + max(0, ttl), value)
+    return None
+
+
+def _is_degraded(value: Any) -> bool:
+    """True for sample/failure responses. These must never be cached as live data."""
+    if isinstance(value, CitedAnswer):
+        return value.degraded or value.provider == "demo"
+    if isinstance(value, list):
+        return not value or all(isinstance(h, SearchHit) and h.provider == "demo" for h in value)
+    if isinstance(value, dict):
+        return bool(value.get("degraded")) or value.get("provider") == "demo"
+    return False
+
+
+def _cache_put(key: str, value: Any, ttl_s: float) -> None:
+    # A transient failure must not make a judge re-run show "sample data" for five minutes.
+    if _is_degraded(value):
+        return
+    now = time.monotonic()
+    _CACHE[key] = (now + max(0.0, ttl_s), value)
     # Bound memory: drop expired entries when the cache grows.
     if len(_CACHE) > 500:
         for k in [k for k, (exp, _) in _CACHE.items() if exp <= now][:250]:
             _CACHE.pop(k, None)
-    return value
 
 
 def clear_cache() -> None:
@@ -101,14 +117,23 @@ class CitedAnswer:
 
 
 # ---------------------------------------------------------------- keys / settings
+def _first_key(*values: str) -> str:
+    """First non-blank key, so a whitespace-only value cannot shadow a working alias."""
+    for value in values:
+        cleaned = (value or "").strip()
+        if cleaned:
+            return cleaned
+    return ""
+
+
 def serpapi_key() -> str:
     settings = get_settings()
-    return (settings.serpapi_api_key or settings.serpapi_key_alias).strip()
+    return _first_key(settings.serpapi_api_key, settings.serpapi_key_alias)
 
 
 def youcom_key() -> str:
     settings = get_settings()
-    return (settings.youcom_api_key or settings.ydc_api_key or os.environ.get("YDC_API_KEY", "")).strip()
+    return _first_key(settings.youcom_api_key, settings.ydc_api_key, os.environ.get("YDC_API_KEY", ""))
 
 
 # ---------------------------------------------------------------- demo fallback
@@ -126,7 +151,7 @@ def demo_hits(query: str, *, provider: str, engine: str = "google", count: int =
             summary=f"Sample result for '{query}'. Add SERPAPI_API_KEY to fetch real-time results.",
             source="example.org", position=i + 1, provider="demo", engine=engine, query=query,
         )
-        for i in range(max(1, min(count, 5)))
+        for i in range(max(1, min(count, 30)))
     ]
 
 
@@ -150,6 +175,16 @@ _SERP_ENGINES: dict[str, tuple[str, str]] = {
     "google_shopping": ("google_shopping", "shopping_results"),
     "google_maps": ("google_maps", "local_results"),
     "google_scholar": ("google_scholar", "organic_results"),
+}
+
+# Single source of truth for the UI labels (the router and the agent catalogue use these).
+ENGINE_LABELS = {
+    "google": "Web",
+    "google_news": "News",
+    "google_jobs": "Jobs",
+    "google_shopping": "Shopping",
+    "google_maps": "Maps",
+    "google_scholar": "Scholar",
 }
 
 
@@ -217,9 +252,6 @@ async def serpapi_search(
         log.info("SerpApi key not configured; returning sample results for %r", query)
         return demo_hits(query, provider="serpapi", engine=engine, count=count)
 
-    def build() -> list[SearchHit]:
-        return []
-
     async def call() -> list[SearchHit]:
         params: dict[str, Any] = {
             "engine": _SERP_ENGINES[engine][0], "q": query, "api_key": key,
@@ -232,11 +264,11 @@ async def serpapi_search(
             async with httpx.AsyncClient(transport=_transport, timeout=settings.sponsor_timeout_s) as client:
                 resp = await client.get(url, headers={"Accept": "application/json"})
             if resp.status_code >= 400:
-                log.info("SerpApi returned %s for %r", resp.status_code, query)
+                log.info("SerpApi returned HTTP %s (search request suppressed)", resp.status_code)
                 return demo_hits(query, provider="serpapi", engine=engine, count=count)
             data = resp.json()
             if isinstance(data, dict) and data.get("error"):
-                log.info("SerpApi error for %r: %s", query, str(data.get("error"))[:200])
+                log.info("SerpApi reported an error (search request suppressed): %s", str(data.get("error"))[:120])
                 return demo_hits(query, provider="serpapi", engine=engine, count=count)
             bucket = data.get(_SERP_ENGINES[engine][1], []) if isinstance(data, dict) else []
             if isinstance(bucket, dict):
@@ -250,15 +282,16 @@ async def serpapi_search(
             # Do not persist the key inside the URL cache entry.
             return hits
         except (httpx.HTTPError, ValueError, TypeError) as exc:
-            log.info("SerpApi call failed for %r: %s", query, exc)
+            # Never log the exception here: its request URL contains api_key=<secret>.
+            log.info("SerpApi call failed (%s); using labelled sample data", type(exc).__name__)
             return demo_hits(query, provider="serpapi", engine=engine, count=count)
 
     # The cache key intentionally excludes the key; results are identical for all keys.
-    hit = _CACHE.get(cache_key)
-    if hit and hit[0] > time.monotonic():
-        return hit[1]
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
     result = await call()
-    _CACHE[cache_key] = (time.monotonic() + settings.sponsor_cache_s, result)
+    _cache_put(cache_key, result, settings.sponsor_cache_s)
     return result
 
 
@@ -270,9 +303,9 @@ async def serpapi_extract(url: str) -> dict[str, Any]:
         return {"url": url, "text": f"Sample extracted content for {url}. Add SERPAPI_API_KEY for live extraction.",
                 "provider": "demo", "degraded": True}
     cache_key = f"serpapi:extract:{url}"
-    hit = _CACHE.get(cache_key)
-    if hit and hit[0] > time.monotonic():
-        return hit[1]
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
     params = urlencode({"api_key": key, "url": url, "output": "md"})
     target = f"{settings.serpapi_base_url.rstrip('/')}/extract?{params}"
     try:
@@ -292,10 +325,11 @@ async def serpapi_extract(url: str) -> dict[str, Any]:
             text = resp.text
         out = {"url": url, "text": text[:20000], "provider": "serpapi", "degraded": not bool(text)}
     except (httpx.HTTPError, ValueError, TypeError) as exc:
-        log.info("SerpApi Extract failed for %r: %s", url, exc)
+        # The HTTPStatusError string carries the full URL with api_key=... — log only its type.
+        log.info("SerpApi Extract failed (%s); using labelled sample data", type(exc).__name__)
         out = {"url": url, "text": f"Sample extracted content for {url}. Live extraction is unavailable.",
                "provider": "demo", "degraded": True}
-    _CACHE[cache_key] = (time.monotonic() + settings.sponsor_cache_s, out)
+    _cache_put(cache_key, out, settings.sponsor_cache_s)
     return out
 
 
@@ -325,8 +359,28 @@ async def _you_post(path: str, payload: dict[str, Any]) -> dict[str, Any] | None
         except (httpx.HTTPError, ValueError, TypeError) as exc:
             last_error = exc
     if last_error:
-        log.info("You.com %s unavailable: %s", path, last_error)
+        log.info("You.com %s unavailable (%s)", path, type(last_error).__name__)
     return None
+
+
+def _web_results(data: dict[str, Any] | None) -> list[Any]:
+    """You.com may return results.web as a dict, a list, or omit it entirely."""
+    results = (data or {}).get("results") or {}
+    if isinstance(results, list):
+        return results
+    if not isinstance(results, dict):
+        return []
+    web = results.get("web") or []
+    return web if isinstance(web, list) else []
+
+
+def _excerpt_text(value: Any) -> str:
+    """Citation excerpts arrive as a list, but tolerate a plain string too."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return " ".join(str(x) for x in value[:2])
+    return ""
 
 
 def _normalise_you(item: dict[str, Any], *, query: str, position: int) -> SearchHit:
@@ -340,7 +394,7 @@ def _normalise_you(item: dict[str, Any], *, query: str, position: int) -> Search
     url = _first(item, "url", "link", default="https://you.com/")
     return SearchHit(
         title=_first(item, "title", default=url), url=url, summary=summary[:1200],
-        source=_first(item, "favicon_url") or url.split("/")[2] if "://" in url else "you.com",
+        source=_first(item, "favicon_url") or (url.split("/")[2] if "://" in url else "you.com"),
         published_at=_first(item, "page_age", "date") or None,
         position=int(item.get("position") or position), provider="you.com", engine="search", query=query,
         extra={"thumbnail_url": item.get("thumbnail_url")} if item.get("thumbnail_url") else {},
@@ -355,18 +409,18 @@ async def you_search(query: str, *, count: int = 5, freshness: str = "") -> list
         return demo_hits(query, provider="you.com", engine="search", count=count)
     settings = get_settings()
     cache_key = f"you:search:{query}:{count}:{freshness}"
-    hit = _CACHE.get(cache_key)
-    if hit and hit[0] > time.monotonic():
-        return hit[1]
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
     payload: dict[str, Any] = {"query": query, "count": count}
     if freshness:
         payload["freshness"] = freshness
     data = await _you_post("/v1/search", payload)
-    rows = ((data or {}).get("results") or {}).get("web") or []
+    rows = _web_results(data)
     hits = [_normalise_you(row, query=query, position=i + 1) for i, row in enumerate(rows[:count]) if isinstance(row, dict)]
     if not hits:
         hits = demo_hits(query, provider="you.com", engine="search", count=count)
-    _CACHE[cache_key] = (time.monotonic() + settings.sponsor_cache_s, hits)
+    _cache_put(cache_key, hits, settings.sponsor_cache_s)
     return hits
 
 
@@ -376,29 +430,31 @@ async def you_answer(query: str, *, country: str = "IN", language: str = "EN") -
         return demo_answer(query)
     settings = get_settings()
     cache_key = f"you:answer:{query}:{country}:{language}"
-    hit = _CACHE.get(cache_key)
-    if hit and hit[0] > time.monotonic():
-        return hit[1]
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
     data = await _you_post("/v1/answer", {"query": query, "country": country, "language": language})
-    if not data or not (data.get("answer") or "").strip():
+    answer_text = str((data or {}).get("answer") or "").strip()
+    if not answer_text:
         out = demo_answer(query)
     else:
         citations = []
-        for i, c in enumerate(data.get("citations") or [], 1):
+        for i, c in enumerate((data or {}).get("citations") or [], 1):
             if not isinstance(c, dict):
                 continue
+            source = _first(c, "source", "url")
             citations.append({
-                "number": i, "source": _first(c, "source", "url"),
-                "title": _first(c, "title") or (_first(c, "source", "url").split("/")[2] if "://" in _first(c, "source", "url") else "Source"),
-                "excerpt": " ".join(str(x) for x in (c.get("excerpts") or [])[:2])[:800],
+                "number": i, "source": source,
+                "title": _first(c, "title") or (source.split("/")[2] if "://" in source else "Source"),
+                "excerpt": _excerpt_text(c.get("excerpts"))[:800],
             })
-        rows = ((data.get("results") or {}).get("web") or [])
+        rows = _web_results(data)
         out = CitedAnswer(
-            answer=str(data["answer"]).strip(), citations=citations,
+            answer=answer_text, citations=citations,
             results=[_normalise_you(r, query=query, position=i + 1) for i, r in enumerate(rows[:10]) if isinstance(r, dict)],
             provider="you.com", degraded=False,
         )
-    _CACHE[cache_key] = (time.monotonic() + settings.sponsor_cache_s, out)
+    _cache_put(cache_key, out, settings.sponsor_cache_s)
     return out
 
 

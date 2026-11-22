@@ -693,16 +693,23 @@ export const BLUEPRINTS: Blueprint[] = [
     name: "LiveDesk research workspace",
     tagline: "SerpApi structured signals plus You.com cited answers.",
     description:
-      "A live research desk: SerpApi collects web and news signals, You.com writes a cited answer, and a comparison assistant answers follow-up questions with fresh sponsor sources.",
+      "The research desk inside LayerFlow: SerpApi collects web and news signals, You.com writes a cited answer, ordinary agents (researcher, news monitor, SEO auditor) use the same live evidence, and the assistant answers follow-ups with fresh sponsor sources.",
     industry: "other",
     icon: "ScanSearch",
     agents: [
       { name: "Web Signal Collector", kind: "serpapi_search", description: "Structured web results from SerpApi." },
       { name: "News Signal Monitor", kind: "serpapi_search", description: "Fresh news via SerpApi's Google News engine." },
       { name: "Cited Answer Desk", kind: "you_research", description: "Cited answer from the You.com Answer API." },
+      { name: "Live Web Researcher", kind: "researcher", description: "Evidence brief from live SerpApi results + You.com citations." },
+      { name: "Live Topic Monitor", kind: "news_monitor", description: "Fresh Google News items through SerpApi." },
+      { name: "Live SEO Auditor", kind: "site_auditor", description: "Audits live-search pages with You.com context." },
       { name: "Live Research Assistant", kind: "comparison_assistant", description: "Follow-up Q&A with live sponsor citations." },
     ],
-    pipelines: [{ name: "Daily live research", steps: ["Web Signal Collector", "News Signal Monitor", "Cited Answer Desk"], trigger: "Manual" }],
+    pipelines: [{
+      name: "Daily live research",
+      steps: ["Web Signal Collector", "News Signal Monitor", "Live Web Researcher", "Live SEO Auditor", "Cited Answer Desk"],
+      trigger: "Manual",
+    }],
     datasets: ["Research Queue"],
     modules: ["pipelines", "datasets", "assistant"],
   },
@@ -835,6 +842,18 @@ export const BLUEPRINT_SPECS: Record<string, BlueprintSpec> = {
       "News Signal Monitor": { engine: "google_news", query: "AI agents India", gl: "in", hl: "en", count: 8, dedupe: true },
       "Cited Answer Desk": {
         question: "What changed in India's AI agent startup ecosystem this month?", mode: "answer", country: "IN", language: "EN",
+      },
+      "Live Web Researcher": {
+        question: "AI agent platforms in India", search: "none", max_sources: 5,
+        live_sources: true, live_provider: "serpapi", live_engine: "google", live_count: 5, live_answer: true,
+      },
+      "Live Topic Monitor": {
+        keywords: ["AI agents India", "agentic AI funding"], use_google_news: false,
+        live_sources: true, live_count: 8, max_items: 10, fetch_full_text: false,
+      },
+      "Live SEO Auditor": {
+        site_url: "https://example.org", use_sitemap: false, max_pages: 5,
+        live_sources: true, live_query: "AI agent platform India", live_answer: true,
       },
       "Live Research Assistant": {
         dataset: "$dataset", live_sources: true, max_sources: 5,

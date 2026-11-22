@@ -1,8 +1,8 @@
 """SerpApi collector: structured, real-time results from Google Web / News / Jobs / Shopping / Maps / Scholar.
 
 Track 1 integration. One agent can run several queries, de-duplicate by URL and optionally deepen the top N hits
-with the SerpApi Extract API. Every call goes through the ``serpapi.*`` tools so runs get tool events, timeouts and
-retries, and offline runs fall back to labelled sample data instead of crashing.
+with the SerpApi Extract API. Every call goes through the ``serpapi.*`` tools so runs get tool events and timeouts,
+and offline runs fall back to labelled sample data instead of crashing.
 """
 
 from __future__ import annotations
@@ -16,11 +16,12 @@ ENGINES = ("google", "google_news", "google_jobs", "google_shopping", "google_ma
 
 
 async def run(ctx, cfg: dict[str, Any], items: list[FlowItem]) -> list[FlowItem]:
+    max_queries = max(1, min(int(cfg.get("max_queries", 5)), 10))
     queries = [q.strip() for q in (cfg.get("queries") or []) if isinstance(q, str) and q.strip()]
     if not queries and isinstance(cfg.get("query"), str) and cfg["query"].strip():
         queries = [cfg["query"].strip()]
     if not queries:
-        queries = [it.title for it in items if it.title][: int(cfg.get("max_queries", 5))]
+        queries = [it.title for it in items if it.title][:max_queries]
     if not queries:
         raise ValueError("Add a search query (or pass items whose titles are queries)")
 
@@ -30,7 +31,6 @@ async def run(ctx, cfg: dict[str, Any], items: list[FlowItem]) -> list[FlowItem]
     location, gl, hl = cfg.get("location", ""), cfg.get("gl", "in"), cfg.get("hl", "en")
     count = int(cfg.get("count", 10))
     extract_top = int(cfg.get("extract_top", 0))
-    max_queries = max(1, min(int(cfg.get("max_queries", 5)), 10))
 
     out: list[FlowItem] = []
     seen: set[str] = set()

@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import urljoin, urlsplit
 
 from app.platform.flow import FlowItem
+from app.platform.kinds.live_evidence import cited_answer, cited_answer_markdown, live_hits
 from app.platform.tools import invoke
 from app.services.fetcher import FetchError
 from app.services.htmlmeta import parse_page
@@ -97,6 +98,17 @@ async def run(ctx, cfg: dict[str, Any], items: list[FlowItem]) -> list[FlowItem]
     limit = int(cfg.get("max_pages", 25))
     queue = await _discover(ctx, targets[0], limit, cfg.get("use_sitemap", True)) if cfg.get("site_url") else targets[:limit]
     host = urlsplit(queue[0]).hostname
+    if cfg.get("live_sources"):
+        # Audit what people actually find in search, not only what the sitemap advertises.
+        query = cfg.get("live_query") or f"site:{host}"
+        try:
+            hits = await live_hits(ctx, query, engine="google", count=int(cfg.get("live_count", 10)),
+                                   location=cfg.get("location", ""))
+            extra = [h["url"] for h in hits if urlsplit(h["url"]).hostname == host]
+            queue = list(dict.fromkeys([*queue, *extra]))
+            await ctx.log(f"SerpApi added {len(extra)} live result(s) to the SEO audit queue")
+        except Exception as exc:  # a sponsor outage must not kill the audit
+            await ctx.log(f"SerpApi discovery failed: {exc}", "warn")
     links_only = cfg.get("checks") == "links"
     link_sources: dict[str, str] = {}
     pages: list[dict[str, Any]] = []
@@ -161,9 +173,20 @@ async def run(ctx, cfg: dict[str, Any], items: list[FlowItem]) -> list[FlowItem]
                          affected=v, fix=CHECKS[k][3]) for k, v in by_issue.items() if v]
     findings.sort(key=lambda f: (SEVERITY_ORDER.get(f["severity"], 9), -f["affected_count"]))
     report = report_markdown(targets[0], pages, findings)
+    live_answer_data = None
+    if cfg.get("live_answer"):
+        query = cfg.get("live_query") or f"{targets[0]} review"
+        try:
+            live_answer_data = await cited_answer(ctx, query, country=cfg.get("country", "IN"), language=cfg.get("language", "EN"))
+            report += "\n\n---\n\n" + cited_answer_markdown(query, live_answer_data)
+        except Exception as exc:
+            await ctx.log(f"You.com cited answer failed: {exc}", "warn")
     ctx.outputs["report"] = report
     await ctx.log(f"Audited {len(pages)} page(s): {len(findings)} finding(s)")
     score = max(0, 100 - sum({"critical": 15, "major": 8, "minor": 3}.get(f["severity"], 1) for f in findings))
     return [FlowItem(title=f"SEO audit: {targets[0]}", url=targets[0], text=report, summary=f"{len(pages)} pages, {len(findings)} findings, score {score}",
-                     formats={"article": report}, data={"findings": findings, "pages": pages, "score": score})]
+                     formats={"article": report},
+                     data={"findings": findings, "pages": pages, "score": score,
+                           "live_answer": {"answer": live_answer_data.get("answer"),
+                                           "citations": live_answer_data.get("citations") or []} if live_answer_data else None})]
 
