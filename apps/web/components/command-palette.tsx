@@ -12,6 +12,7 @@ import { Kbd, Spinner, cn } from "./ui";
 
 const PAGES = [
   { label: "Home", href: "/" },
+  { label: "LiveDesk", href: "/livedesk" },
   { label: "Agent catalogue", href: "/catalogue" },
   { label: "My agents", href: "/agents" },
   { label: "Activity", href: "/activity" },

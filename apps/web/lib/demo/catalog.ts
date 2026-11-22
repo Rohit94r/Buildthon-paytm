@@ -689,6 +689,24 @@ export const BLUEPRINTS: Blueprint[] = [
     modules: ["pipelines", "assistant"],
   },
   {
+    key: "livedesk_research",
+    name: "LiveDesk research workspace",
+    tagline: "SerpApi structured signals plus You.com cited answers.",
+    description:
+      "A live research desk: SerpApi collects web and news signals, You.com writes a cited answer, and a comparison assistant answers follow-up questions with fresh sponsor sources.",
+    industry: "other",
+    icon: "ScanSearch",
+    agents: [
+      { name: "Web Signal Collector", kind: "serpapi_search", description: "Structured web results from SerpApi." },
+      { name: "News Signal Monitor", kind: "serpapi_search", description: "Fresh news via SerpApi's Google News engine." },
+      { name: "Cited Answer Desk", kind: "you_research", description: "Cited answer from the You.com Answer API." },
+      { name: "Live Research Assistant", kind: "comparison_assistant", description: "Follow-up Q&A with live sponsor citations." },
+    ],
+    pipelines: [{ name: "Daily live research", steps: ["Web Signal Collector", "News Signal Monitor", "Cited Answer Desk"], trigger: "Manual" }],
+    datasets: ["Research Queue"],
+    modules: ["pipelines", "datasets", "assistant"],
+  },
+  {
     key: "college_portal",
     name: "College portal",
     tagline: "College data, an AI comparison assistant and admission content.",
@@ -807,6 +825,24 @@ export const BLUEPRINT_SPECS: Record<string, BlueprintSpec> = {
     },
     datasets: {},
     approval: ["Hourly news brief"],
+  },
+  livedesk_research: {
+    configs: {
+      "Web Signal Collector": {
+        engine: "google", query: "AI agent startups India", gl: "in", hl: "en", count: 8,
+        queries: ["AI agent platform funding", "agentic AI product launches India"], dedupe: true,
+      },
+      "News Signal Monitor": { engine: "google_news", query: "AI agents India", gl: "in", hl: "en", count: 8, dedupe: true },
+      "Cited Answer Desk": {
+        question: "What changed in India's AI agent startup ecosystem this month?", mode: "answer", country: "IN", language: "EN",
+      },
+      "Live Research Assistant": {
+        dataset: "$dataset", live_sources: true, max_sources: 5,
+        instructions: "Be concise and neutral. Use live web sources for fresh context and cite them with [n].",
+      },
+    },
+    datasets: { "Research Queue": "research_queue" },
+    approval: [],
   },
   college_portal: {
     configs: {

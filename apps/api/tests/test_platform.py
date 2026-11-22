@@ -479,7 +479,7 @@ async def test_blueprints_apply_idempotently(authed):
     bps = (await authed.get(f"{API}/blueprints")).json()["items"]
     keys = {b["key"] for b in bps}
     assert {"news_media_autopilot", "college_portal", "executive_newsroom", "blog_seo_autopilot", "ecommerce_price_watch", "hackathon_listings",
-            "seo_automation", "lead_management", "customer_support"} == keys
+            "seo_automation", "lead_management", "customer_support", "livedesk_research"} == keys
     for key in keys:
         r = await authed.post(f"{API}/blueprints/{key}/apply")
         assert r.status_code == 200, (key, r.text)
@@ -501,10 +501,11 @@ async def test_seed_demo_platform_is_idempotent(tenant):
     assert first["platform_admin"] == ADMIN_EMAIL
     assert first["marketpulse"]["content_added"] == 3 and first["collegecompass"]["records_added"] == 8
     assert first["hackfinder"]["records_added"] == 5
+    assert first["livedesk"]["records_added"] == 3
     second = await seed_demo_platform()
     assert second["marketpulse"] == {"created": False, "content_added": 0} and second["collegecompass"]["records_added"] == 0
     async with session_factory()() as db:
-        assert (await db.execute(select(DatasetRecord))).scalars().all().__len__() == 13
+        assert (await db.execute(select(DatasetRecord))).scalars().all().__len__() == 16
         runs = (await db.execute(select(PipelineRun))).scalars().all()
         assert len(runs) == 5 and all(r.status == "succeeded" for r in runs)
 

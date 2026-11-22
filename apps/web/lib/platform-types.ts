@@ -484,6 +484,19 @@ export interface LiveDeskCollection {
   hits: LiveDeskSearchHit[];
 }
 
+export interface LiveDeskStatus {
+  keys: { serpapi: boolean; youcom: boolean };
+  mode: "live" | "demo";
+  engines: { key: LiveDeskEngine; label: string }[];
+}
+
+export interface LiveDeskRequest {
+  query: string;
+  engines?: LiveDeskEngine[];
+  location?: string;
+  count?: number;
+}
+
 export interface LiveDeskResponse {
   query: string;
   answer: {

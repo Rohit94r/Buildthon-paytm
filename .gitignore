@@ -27,6 +27,7 @@ dist/
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+package-lock.json
 
 # Data & artifacts
 data/

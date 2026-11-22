@@ -122,6 +122,15 @@ HACKATHON_EXTRACT = [
     _f("url", "Registration / event URL", "url"),
 ]
 
+RESEARCH_FIELDS = [
+    _f("question", "Research question"),
+    _f("topic", "Topic", compare=True),
+    _f("priority", "Priority", "number", compare=True, higher_is_better=True),
+    _f("status", "Status", compare=True),
+    _f("notes", "Notes"),
+]
+
+
 BLUEPRINTS: dict[str, Blueprint] = {
     b.key: b
     for b in (
@@ -160,6 +169,44 @@ BLUEPRINTS: dict[str, Blueprint] = {
                 {"name": "Daily market desk", "description": "Hourly: collect, write, repurpose, optimise, check, publish after approval.",
                  "steps": ["Market Scraper", "Trend Monitor", "Persona Rewriter", "Format Studio", "SEO Optimizer", "Quality Gate", "Auto Publisher"],
                  "trigger": "schedule", "every_minutes": 60, "require_approval": True},
+            ],
+        ),
+        Blueprint(
+            key="livedesk_research",
+            name="LiveDesk research workspace",
+            tagline="SerpApi structured signals + You.com cited answers in one workspace",
+            description="A ready-made research desk: SerpApi collects web and news signals, You.com writes a cited answer, "
+            "and a comparison assistant answers follow-up questions with the same live sources.",
+            industry="other",
+            icon="ScanSearch",
+            modules=["pipelines", "datasets", "assistant"],
+            brand_color="#0ea5e9",
+            required_integrations=["serpapi", "youcom"],
+            datasets=[{"name": "Research Queue", "slug": "research_queue", "key_field": "question", "public": False,
+                       "fields": RESEARCH_FIELDS, "description": "Sample research questions for the LiveDesk demo."}],
+            agents=[
+                {"name": "Web Signal Collector", "kind": "serpapi_search",
+                 "description": "Collects structured web results with SerpApi.",
+                 "config": {"engine": "google", "query": "AI agent startups India", "gl": "in", "hl": "en", "count": 8,
+                            "queries": ["AI agent platform funding", "agentic AI product launches India"], "dedupe": True}},
+                {"name": "News Signal Monitor", "kind": "serpapi_search",
+                 "description": "Collects fresh news with SerpApi's Google News engine.",
+                 "config": {"engine": "google_news", "query": "AI agents India", "gl": "in", "hl": "en", "count": 8,
+                            "dedupe": True}},
+                {"name": "Cited Answer Desk", "kind": "you_research",
+                 "description": "Answers the question of the day with You.com citations.",
+                 "config": {"question": "What changed in India's AI agent startup ecosystem this month?",
+                            "mode": "answer", "country": "IN", "language": "EN"}},
+                {"name": "Live Research Assistant", "kind": "comparison_assistant", "model": "fast",
+                 "description": "Answers dataset questions with fresh sponsor citations.",
+                 "config": {"dataset": "@research_queue", "live_sources": True, "max_sources": 5,
+                            "instructions": "Be concise and neutral. Quote the question details, then use the live web "
+                                            "sources for fresh context and cite them with [n]."}},
+            ],
+            pipelines=[
+                {"name": "Daily live research", "description": "Collect web + news signals, then write a cited brief.",
+                 "steps": ["Web Signal Collector", "News Signal Monitor", "Cited Answer Desk"],
+                 "trigger": "manual"},
             ],
         ),
         Blueprint(

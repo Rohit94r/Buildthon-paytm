@@ -27,6 +27,10 @@ import type {
   DatasetField,
   DatasetRecord,
   FlowItem,
+  LiveDeskCollection,
+  LiveDeskEngine,
+  LiveDeskResponse,
+  LiveDeskSearchHit,
   ModelInfo,
   Module,
   Paged,
@@ -2004,7 +2008,7 @@ function testAgent(st: Store, ws: WsBase, a: AgentRec, body: AgentTestRequest): 
       const q = String(cfg.query || text || "live research");
       const engine = String(cfg.engine ?? "google");
       const publishers = ["Example News", "OpenAI Blog", "TechCrunch", "The Hindu", "Wikipedia"];
-      items = Array.from({ length: Math.max(1, outN) }, (_, i) => flow({
+      items = Array.from({ length: Math.max(1, Math.min(10, Number(cfg.count ?? 5) || 5)) }, (_, i) => flow({
         title: `${q} — result ${i + 1}`,
         url: `https://example.org/results/${encodeURIComponent(q).slice(0, 30)}-${i + 1}`,
         text: `Sample ${engine} result for “${q}”. Add SERPAPI_API_KEY to see real-time data.`,
@@ -2622,6 +2626,52 @@ function handleChat(req: DemoRequest, st: Store): ChatResponse {
   return clone({ ...res, model: CHAT_MODEL, latency_ms: latency });
 }
 
+function handleLiveDesk(req: DemoRequest): unknown {
+  const ENGINES: LiveDeskEngine[] = ["google", "google_news", "google_jobs", "google_shopping", "google_maps", "google_scholar"];
+  const LABELS: Record<LiveDeskEngine, string> = {
+    google: "Web", google_news: "News", google_jobs: "Jobs", google_shopping: "Shopping", google_maps: "Maps", google_scholar: "Scholar",
+  };
+  if (req.segments[1] === "status" && req.method === "GET") {
+    return {
+      keys: { serpapi: false, youcom: false }, mode: "demo",
+      engines: ENGINES.map((key) => ({ key, label: LABELS[key] })),
+    };
+  }
+  if (req.segments[1] !== "research" || req.method !== "POST") return UNHANDLED;
+  const body = (req.body ?? {}) as { query?: string; engines?: string[]; count?: number };
+  const query = String(body.query ?? "").trim();
+  if (query.length < 2) bad("Query is required");
+  const engines = (body.engines?.length ? body.engines : ["google", "google_news"]).filter((e): e is LiveDeskEngine => ENGINES.includes(e as LiveDeskEngine));
+  const count = Math.max(1, Math.min(10, Number(body.count ?? 5) || 5));
+  const hits: LiveDeskSearchHit[] = Array.from({ length: count }, (_, i) => ({
+    title: `${query} — sample ${LABELS[engines[0] ?? "google"]} result ${i + 1}`,
+    url: `https://example.org/research/${i + 1}`,
+    summary: `Sample result for "${query}". Add sponsor API keys to fetch live results.`,
+    source: "example.org", published_at: null, position: i + 1, provider: "demo", engine: engines[0] ?? "google", query, extra: {},
+  }));
+  const collections: LiveDeskCollection[] = engines.map((engine) => ({
+    engine, label: LABELS[engine], provider: "demo", degraded: true,
+    hits: hits.map((h, i) => ({ ...h, engine, position: i + 1, title: `${query} — sample ${LABELS[engine]} result ${i + 1}` })),
+  }));
+  const citations = hits.slice(0, 3).map((h, i) => ({
+    number: i + 1, title: h.title, source: h.url, excerpt: h.summary, provider: "demo",
+  }));
+  const out: LiveDeskResponse = {
+    query,
+    answer: {
+      answer: `Sample answer for "${query}". [1][2] Add YOUCOM_API_KEY to get a real cited answer.`,
+      citations, results: hits, provider: "demo", degraded: true,
+    },
+    collections,
+    evidence: citations.map((c) => `[${c.number}] ${c.title} — ${c.excerpt} (${c.source})`).join("\n"),
+    sources: citations,
+    keys: { serpapi: false, youcom: false },
+    degraded: true,
+    latency_ms: 420,
+  };
+  return clone(out);
+}
+
 function handleConnections(req: DemoRequest, st: Store): unknown {
   const [, id, action] = req.segments;
   const body = req.body ?? {};
@@ -2824,6 +2874,9 @@ export const handlePlatform: DemoHandler = (req) => {
     case "assistant":
       if (!(a === "chat" && req.segments.length === 2 && req.method === "POST")) return UNHANDLED;
       break;
+    case "livedesk":
+      if (!(req.segments.length === 2 && (a === "status" || a === "research"))) return UNHANDLED;
+      break;
     default:
       break;
   }
@@ -2850,6 +2903,8 @@ export const handlePlatform: DemoHandler = (req) => {
       return handleDatasets(req, st);
     case "assistant":
       return handleChat(req, st);
+    case "livedesk":
+      return handleLiveDesk(req);
     case "connections":
       return handleConnections(req, st);
     case "api-keys":

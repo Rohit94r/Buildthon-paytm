@@ -40,6 +40,7 @@ import {
   Webhook,
   Workflow,
   X,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -75,6 +76,7 @@ const isGroup = (e: NavEntry): e is NavGroup => "items" in e;
 function buildNav(opts: { newsroom: boolean; admin: boolean }): NavEntry[] {
   const nav: NavEntry[] = [
     { href: "/", label: "Home", icon: Home },
+    { href: "/livedesk", label: "LiveDesk", icon: Zap },
     {
       key: "agents",
       label: "Agents",

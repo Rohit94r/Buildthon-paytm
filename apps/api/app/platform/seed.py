@@ -3,6 +3,7 @@
   marketpulse     news media autopilot, a few content items with variants and two finished runs
   collegecompass  college portal with 8 SAMPLE colleges (fictional names, illustrative figures)
   hackfinder      hackathon listings with 5 SAMPLE hackathons (fictional names, future dates)
+  livedesk        SerpApi + You.com research desk with a sample question queue and sponsor agent team
 
 Idempotent: workspaces, agents, pipelines and datasets are matched by slug/name and sample rows are only
 added when missing. Everything sample is labelled as such so nobody mistakes it for real data."""
@@ -34,6 +35,17 @@ WORKSPACES = [
      "domain": "collegecompass.example.com", "blueprint": "college_portal"},
     {"slug": "hackfinder", "name": "HackFinder", "industry": "events", "brand_color": "#db2777",
      "domain": "hackfinder.example.com", "blueprint": "hackathon_listings"},
+    {"slug": "livedesk", "name": "LiveDesk", "industry": "other", "brand_color": "#0ea5e9",
+     "domain": "livedesk.example.com", "blueprint": "livedesk_research"},
+]
+
+LIVEDESK_QUESTIONS = [
+    {"question": "What changed in India's AI agent startup ecosystem this month?", "topic": "Funding",
+     "priority": 5, "status": "queued", "notes": SAMPLE_NOTE},
+    {"question": "SerpApi vs You.com for live research agents", "topic": "Sponsors",
+     "priority": 4, "status": "queued", "notes": SAMPLE_NOTE},
+    {"question": "Which agentic AI hackathons are open in India in 2026?", "topic": "Events",
+     "priority": 3, "status": "queued", "notes": SAMPLE_NOTE},
 ]
 
 MARKET_CONTENT = [
@@ -219,6 +231,8 @@ async def seed_demo_platform() -> dict[str, Any]:
         elif spec["slug"] == "hackfinder":
             entry["records_added"] = await _seed_records(t, "hackathons", _hackathons(), f"({SAMPLE_NOTE}.)")
             entry["members_added"] = await _seed_members(t)
+        elif spec["slug"] == "livedesk":
+            entry["records_added"] = await _seed_records(t, "research_queue", LIVEDESK_QUESTIONS, f"({SAMPLE_NOTE}.)")
         report[spec["slug"]] = entry
     return report
 

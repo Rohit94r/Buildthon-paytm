@@ -2,7 +2,7 @@
 // Finds records named in the question (fuzzy name / alias match) or applies filters and sorts parsed from it,
 // then answers with insights, a comparison table with per-field winners and follow-up suggestions.
 
-import type { ChatMessage, ChatResponse, ComparisonTable, Dataset, DatasetField, DatasetRecord } from "@/lib/platform-types";
+import type { ChatMessage, ChatResponse, ChatSource, ComparisonTable, Dataset, DatasetField, DatasetRecord } from "@/lib/platform-types";
 
 export interface ChatInput {
   dataset: Dataset;
@@ -15,7 +15,7 @@ export interface ChatInput {
 
 export type ChatResult = Omit<ChatResponse, "model" | "latency_ms">;
 
-const NO_SOURCES = { sources: [], sources_degraded: false } as const;
+const NO_SOURCES: Pick<ChatResponse, "sources" | "sources_degraded"> = { sources: [] as ChatSource[], sources_degraded: false };
 
 /* ------------------------------------------------------------------ */
 /* Text helpers                                                        */

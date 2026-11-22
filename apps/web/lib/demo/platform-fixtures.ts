@@ -65,6 +65,19 @@ export const WORKSPACE_SEEDS: WorkspaceSeed[] = [
     path_prefix: "/hackathons",
   },
   {
+    slug: "livedesk",
+    name: "LiveDesk",
+    industry: "other",
+    brand_color: "#0ea5e9",
+    domain: "livedesk.example.com",
+    timezone: "Asia/Kolkata",
+    modules: ["pipelines", "datasets", "assistant"],
+    blueprint: "livedesk_research",
+    created_days_ago: 7,
+    persona: "LiveDesk research team",
+    path_prefix: "/research",
+  },
+  {
     slug: "ten",
     name: "The Executive Narrative",
     industry: "executive_media",
@@ -361,6 +374,27 @@ export const DATASET_TEMPLATES: Record<string, DatasetTemplate> = {
       { product: "Aurora 55-inch 4K TV", brand: "Aurora", retailer: "Reliance Digital", price: 38990, mrp: 42990, discount: 9, rating: 4.0, in_stock: false, url: "https://www.reliancedigital.in/aurora-55-4k" },
     ],
     source: (r) => (typeof r.url === "string" ? r.url : null),
+  },
+  research_queue: {
+    key: "research_queue",
+    name: "Research Queue",
+    slug: "research-queue",
+    description: "Sample research questions answered with SerpApi signals and You.com citations.",
+    key_field: "question",
+    public: false,
+    fields: [
+      { key: "question", label: "Research question", type: "text" },
+      { key: "topic", label: "Topic", type: "text", compare: true },
+      { key: "priority", label: "Priority", type: "number", compare: true, higher_is_better: true },
+      { key: "status", label: "Status", type: "text", compare: true },
+      { key: "notes", label: "Notes", type: "text" },
+    ],
+    rows: () => [
+      { question: "What changed in India's AI agent startup ecosystem this month?", topic: "Funding", priority: 5, status: "queued", notes: "Sample data: demo purposes" },
+      { question: "SerpApi vs You.com for live research agents", topic: "Sponsors", priority: 4, status: "queued", notes: "Sample data: demo purposes" },
+      { question: "Which agentic AI hackathons are open in India in 2026?", topic: "Events", priority: 3, status: "queued", notes: "Sample data: demo purposes" },
+    ],
+    source: () => null,
   },
 };
 
