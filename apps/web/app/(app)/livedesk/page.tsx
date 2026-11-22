@@ -8,12 +8,14 @@ import {
   Globe2,
   GraduationCap,
   MapPin,
+  MessagesSquare,
   Newspaper,
   ScanSearch,
   ShoppingBag,
   Sparkles,
   Zap,
 } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { Button, cn, PageHeader, Skeleton } from "@/components/ui";
 import { Markdown } from "@/components/platform/kit";
@@ -21,6 +23,11 @@ import { errorMessage, get, post } from "@/lib/api";
 import { ms } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
 import type {
+  ChatMessage,
+  ChatRequest,
+  ChatResponse,
+  ChatSource,
+  Dataset,
   LiveDeskCollection,
   LiveDeskEngine,
   LiveDeskRequest,
@@ -81,6 +88,9 @@ function normalizeResearch(raw: Partial<LiveDeskResponse>): LiveDeskResponse {
     keys: raw.keys ?? { serpapi: false, youcom: false },
     degraded: raw.degraded ?? true,
     latency_ms: raw.latency_ms ?? 0,
+    run_id: raw.run_id ?? null,
+    record_id: raw.record_id ?? null,
+    saved: Boolean(raw.saved),
   };
 }
 
@@ -267,6 +277,16 @@ export default function LiveDeskPage() {
                   You.com cited answer
                 </span>
                 {answer?.degraded ? <Badge tone="warn">sample answer</Badge> : <Badge tone="good">live answer</Badge>}
+                {result?.saved && result.run_id ? (
+                  <Link
+                    href={`/runs/${result.run_id}`}
+                    className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-medium text-ink-2 transition-colors hover:border-accent hover:text-accent"
+                    title="Saved as an agent run with tool events"
+                  >
+                    <Sparkles className="size-3" aria-hidden />
+                    saved as run
+                  </Link>
+                ) : null}
                 <span className="text-[11.5px] text-muted">{ms(result?.latency_ms ?? 0)} · {answer?.citations?.length ?? 0} citations</span>
               </div>
               <span className="font-mono text-[11px] text-muted">{result?.query ?? query}</span>
@@ -306,6 +326,8 @@ export default function LiveDeskPage() {
             </div>
           </div>
 
+          <ResearchFollowUp key={result.run_id ?? result.query} question={result.query} />
+
           <p className="text-center text-[11px] text-muted">
             Powered by <span className="font-medium text-ink-2">SerpApi</span> structured search and the{" "}
             <span className="font-medium text-ink-2">You.com</span> Search &amp; Answer APIs. Sample data is labelled whenever sponsor keys are unavailable.
@@ -323,6 +345,90 @@ export default function LiveDeskPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Follow-up questions go through the platform assistant, which reads the saved research record and
+ * re-uses the same live sponsor evidence. This is the "research becomes workflow" part of LiveDesk. */
+function ResearchFollowUp({ question }: { question: string }) {
+  const datasetsQ = useQuery({ queryKey: ["datasets"], queryFn: () => get<{ items: Dataset[] }>("/datasets"), select: (d) => d.items });
+  const dataset = useMemo(() => {
+    const items = datasetsQ.data ?? [];
+    return items.find((d) => d.slug === "research_queue") ?? items[0] ?? null;
+  }, [datasetsQ.data]);
+  const [text, setText] = useState("");
+  const [error, setError] = useState("");
+  const [turns, setTurns] = useState<{ role: "user" | "assistant"; content: string; sources: ChatSource[] }[]>([]);
+
+  const chat = useAction((req: ChatRequest) => post<ChatResponse>("/assistant/chat", req), {
+    silent: true,
+    onSuccess: (r, req) => {
+      setTurns((t) => [
+        ...t,
+        { role: "user", content: req.message, sources: [] },
+        { role: "assistant", content: r?.answer ?? "", sources: r?.sources ?? [] },
+      ]);
+      setText("");
+      setError("");
+    },
+    onError: (e) => setError(errorMessage(e)),
+  });
+
+  const send = () => {
+    const message = text.trim();
+    if (!message || !dataset || chat.isPending) return;
+    const history: ChatMessage[] = turns.filter((t) => t.content).slice(-6).map((t) => ({ role: t.role, content: t.content }));
+    chat.mutate({ dataset: dataset.id, message, history, live_sources: true });
+  };
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-surface-2/50 px-4 py-3 sm:px-5">
+        <div className="flex items-center gap-2">
+          <MessagesSquare className="size-4 text-accent" aria-hidden />
+          <h2 className="text-[13px] font-semibold text-ink">Follow-up assistant</h2>
+          <Badge tone="good">live sources on</Badge>
+        </div>
+        <span className="max-w-full truncate text-[11px] text-muted" title={question}>about: {question}</span>
+      </header>
+      <div className="space-y-3 px-4 py-4 sm:px-5">
+        {turns.length ? (
+          <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
+            {turns.map((t, i) => (
+              <div key={i} className={cn("rounded-lg px-3 py-2 text-[12.5px] leading-6", t.role === "user" ? "ml-auto max-w-[85%] bg-accent-soft text-ink" : "mr-auto max-w-[92%] bg-surface-2 text-ink-2")}>
+                {t.role === "assistant" ? <Markdown text={t.content} /> : t.content}
+                {t.sources.length ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5 border-t border-line pt-2">
+                    {t.sources.map((s, n) => (
+                      <a key={`${s.source}-${n}`} href={s.source} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-[10.5px] text-muted hover:border-accent hover:text-accent">
+                        [{s.number ?? n + 1}] {s.title || s.source} <ExternalLink className="size-2.5" aria-hidden />
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {error ? <p className="text-[12px] text-bad">{error}</p> : null}
+        <div className="flex items-end gap-2">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
+            placeholder={datasetsQ.isPending ? "Loading research dataset…" : "Ask a follow-up about this research…"}
+            disabled={!dataset}
+            className="h-9 min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-3 text-[12.5px] text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+          />
+          <Button variant="primary" loading={chat.isPending} disabledReason={!text.trim() || !dataset ? "Ask a question" : null} onClick={send}>
+            Ask
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted">
+          Answers are grounded in the saved research record and fresh SerpApi / You.com evidence — comparison figures stay computed from data, never invented.
+        </p>
+      </div>
+    </section>
   );
 }
 

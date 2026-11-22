@@ -37,6 +37,8 @@ Question ──► /livedesk/research ─┤                                    
   and a 10-record research dataset.
 - **Cited by construction.** You.com citations are returned as structured sources; the assistant also renders an
   explicit numbered source list even if the model paraphrases away its `[n]` markers.
+- **Saved as platform state.** Each research run writes a real pipeline run (5 steps, step events, audit entry),
+  upserts the cited answer into the Research Queue dataset and feeds the LiveDesk follow-up assistant.
 - **Fast and credit-aware.** 12s timeouts, 5-minute in-process cache, one You.com answer call per research run, and
   injected transports in tests — no credits are spent by the test suite.
 - **Honest fallback.** With no key or a failed request, results are deterministic and labelled `provider="demo"` /
@@ -70,6 +72,7 @@ Open **http://localhost:3000/livedesk**, pick preset engines and press **Run res
 ```bash
 cp .env.example apps/api/.env
 # Fill SERPAPI_API_KEY (or SERPAPI_KEY) and YOUCOM_API_KEY (or YDC_API_KEY) in apps/api/.env
+# On a shared Postgres/Neon, set DB_SCHEMA=buildthon in apps/api/.env to isolate this product's tables.
 cd apps/api
 python -m pip install -e ".[dev]"
 python -m app.cli migrate

@@ -73,11 +73,17 @@ def client_ip(request: Request) -> str:
 async def current_principal(request: Request, db: AsyncSession = Depends(get_db)) -> Principal:
     settings = get_settings()
 
-    # Local development escape hatch. Auth is bypassed completely: every request is the
-    # first active user (normally the owner). Never enable this on a shared/public host.
+    # Local development escape hatch. Auth is bypassed completely: every request acts as the
+    # platform admin (owner of every seeded workspace) so all workspaces are reachable.
+    # Never enable this on a shared/public host.
     if settings.disable_auth:
         user = (
-            await db.execute(select(User).where(User.active.is_(True)).order_by(User.created_at).limit(1))
+            await db.execute(
+                select(User)
+                .where(User.active.is_(True))
+                .order_by(User.is_platform_admin.desc(), User.created_at)
+                .limit(1)
+            )
         ).scalar_one_or_none()
         if user is None:
             raise ApiError(503, "no_local_user", "DISABLE_AUTH is on but no active user exists. Run: python -m app.cli bootstrap")

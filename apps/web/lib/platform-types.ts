@@ -512,6 +512,10 @@ export interface LiveDeskResponse {
   keys: { serpapi: boolean; youcom: boolean };
   degraded: boolean;
   latency_ms: number;
+  /** The research is also saved as an agent run + a research dataset record. */
+  run_id?: string | null;
+  record_id?: string | null;
+  saved?: boolean;
 }
 
 /* ------------------------------------------------------------------ */

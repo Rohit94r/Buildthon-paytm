@@ -71,6 +71,25 @@ def _sqlite_pragmas(dbapi_conn, _record) -> None:
     cur.close()
 
 
+def _search_path_listener(schema: str):
+    safe = schema.replace('"', '""')
+
+    def set_path(dbapi_conn) -> None:
+        cur = dbapi_conn.cursor()
+        try:
+            cur.execute(f'SET search_path TO "{safe}"')
+        finally:
+            cur.close()
+
+    def connect_listener(dbapi_conn, _record) -> None:
+        set_path(dbapi_conn)
+
+    def checkout_listener(dbapi_conn, _record, _fairy) -> None:
+        set_path(dbapi_conn)
+
+    return connect_listener, checkout_listener
+
+
 def init_engine(url: str | None = None) -> AsyncEngine:
     global _engine, _sessionmaker
     settings = get_settings()
@@ -83,12 +102,16 @@ def init_engine(url: str | None = None) -> AsyncEngine:
         kwargs["connect_args"] = {"timeout": 15}
     else:
         kwargs.update(pool_size=10, max_overflow=10, pool_pre_ping=True)
-        if settings.db_schema:
-            # Keep this hackathon's tables in their own schema when the database is shared.
-            kwargs["connect_args"] = {"server_settings": {"search_path": settings.db_schema}}
     _engine = create_async_engine(url, **kwargs)
     if url.startswith("sqlite"):
         event.listen(_engine.sync_engine, "connect", _sqlite_pragmas)
+    elif settings.db_schema:
+        # Shared-DB support: keep this product's tables in their own schema.
+        # Neon's transaction pooler ignores startup `server_settings` and can drop session state on a
+        # recycled connection, so set search_path both for new connections and on EVERY checkout.
+        connect_listener, checkout_listener = _search_path_listener(settings.db_schema)
+        event.listen(_engine.sync_engine, "connect", connect_listener)
+        event.listen(_engine.sync_engine, "checkout", checkout_listener)
     _sessionmaker = async_sessionmaker(_engine, expire_on_commit=False, autoflush=False)
     return _engine
 

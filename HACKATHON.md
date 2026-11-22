@@ -34,7 +34,9 @@ git clone https://github.com/Rohit94r/Buildthon-paytm.git
 cd Buildthon-paytm
 cp .env.example apps/api/.env
 # add SERPAPI_API_KEY (or SERPAPI_KEY) and YOUCOM_API_KEY (or YDC_API_KEY)
+# shared Postgres? set DB_SCHEMA=buildthon to keep this product's tables in their own schema
 cd apps/api && python -m pip install -e ".[dev]" && python -m app.cli migrate && python -m app.cli seed-demo-platform
+# local dev only: DISABLE_AUTH=true acts as the platform admin (owner of every seeded workspace)
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
@@ -54,11 +56,12 @@ cd apps/web && pnpm install && pnpm dev
 3. Toggle **Web** and **News** (optionally Jobs/Shopping/Maps/Scholar), set 5 results, press **Run research**.
 4. Show the parallel fan-out: two SerpApi collections plus the You.com cited answer come back in one response.
 5. Open a citation: it is a real live URL, not a generated one.
-6. Switch to **Assistant**, pick the **LiveDesk** workspace / comparison assistant, and turn **Live sources on**.
-   Ask: *"What should we research first about AI agents in India?"* — the answer includes numbered sponsor sources.
-7. Open **Catalogue** → search `SerpApi` / `You.com`: two sponsor agent kinds and their presets install like any
+6. Click **saved as run**: the response is a real pipeline run with five agent steps, step events and an audit entry.
+7. Use the **Follow-up assistant** under the results with *live sources on*: ask *"What should we research first about
+   AI agents in India?"* — it reads the saved research record and re-cites both sponsors.
+8. Open **Catalogue** → search `SerpApi` / `You.com`: two sponsor agent kinds and their presets install like any
    other platform agent.
-8. Open **Workspaces → LiveDesk** (or run `python -m app.cli seed-demo-platform`) to show the seeded team: Web Signal
+9. Open **Workspaces → LiveDesk** (or run `python -m app.cli seed-demo-platform`) to show the seeded team: Web Signal
    Collector, News Signal Monitor, Cited Answer Desk, Live Web Researcher, Live Topic Monitor, Live SEO Auditor,
    Live Research Assistant — a 5-step manual pipeline and a Research Queue dataset with 10 sample questions.
    Point out that Researcher, News Monitor and SEO Auditor are **ordinary platform agents** using SerpApi / You.com
